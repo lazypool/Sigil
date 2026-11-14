@@ -70,16 +70,103 @@ let images_tab_id = "@images"
 let settings_tab_id = "@settings"
 
 ///|
+let styles_tab_id = "@styles"
+
+///|
 extern "js" fn new_id(prefix : String) -> String = "(prefix) => prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8)"
 
 ///|
-fn new_document(title : String) -> EmailDoc {
-  { id: new_id("doc"), title, source: "", }
+fn document_template(lang : Lang) -> String {
+  match lang {
+    Zh =>
+      (
+        #|@theme #2563EB
+        #|@footer legal
+        #|@split wave
+        #|@letter card
+        #|
+        #|**你好，Sigil！**
+        #|
+        #|Sigil 是一款基于 Markdown 的邮件排版标记语言，用简单的标记写出结构清晰、兼容邮件客户端的 HTML 邮件。它把内容与样式分开处理，让你专注写作，同时用统一的主题色、信纸、分隔符、页脚和签名保持整封邮件的视觉一致；生成的 HTML 不依赖脚本或外部字体，适合直接发送或导出。
+        #|
+        #|---
+        #|
+        #|Sigil 有如下的几个特点：
+        #|
+        #|1. *单一主题色*：整封邮件只使用一个强调色，其余文字和分隔保持中性灰。
+        #|2. *内容与样式分离*：正文只关注内容，主题色、信纸、分隔符、页脚和签名由文档头部的指令统一控制。
+        #|3. *邮件安全输出*：所有样式都内联为邮件客户端可识别的 HTML，不依赖脚本或外部字体。
+        #|
+        #|Sigil 额外的使用方法如下：
+        #|
+        #|- @theme 设置主题色，@letter 选择信纸，@split 选择分隔符，@footer 追加页脚。
+        #|- <sig:classic> 插入个人签名，签名内容来自你的 Profile。
+        #|- <link:https://example.com|示例链接> 生成主题色链接，<icon:mail> 插入内置图标。
+        #|- <image:name> 插入图片库中的图片，$$ 块排版公式，:::chart 块绘制简单图表。
+        #|
+        #|你可以直接修改这段文字，或从左侧新建一封邮件开始写作。
+        #|
+        #|<sig:classic>
+        #|
+        #|```
+        #|Hello, Sigil!
+        #|
+        #|Sigil is a Markdown-based markup language for email layout that produces clean, email-safe HTML.
+        #|
+        #|It uses one accent color and neutral grays, keeps content separate from style, and inlines all CSS without scripts or external fonts. Define the theme, letter, divider, footer, and signature at the top, then write the body with simple text, links, images, formulas, and charts. You can change the words directly, or create a new email from the sidebar to start writing.
+        #|```
+        #|
+      )
+    En =>
+      (
+        #|@theme #2563EB
+        #|@footer legal
+        #|@split wave
+        #|@letter card
+        #|
+        #|**Hello, Sigil!**
+        #|
+        #|Sigil is a Markdown-based markup language for laying out email. It turns simple markup into clean, email-safe HTML with a clear structure. Content and style are handled separately, so you can focus on writing while a consistent theme color, letter, divider, footer, and signature keep the email visually coherent; the generated HTML uses no scripts or external fonts and is ready to send or export.
+        #|
+        #|---
+        #|
+        #|Sigil has the following features:
+        #|
+        #|1. *One theme color*: the whole email uses a single accent color, with neutral gray for all other text and dividers.
+        #|2. *Content and style are separate*: the body only carries content, while the theme color, letter style, divider, footer, and signature are controlled by directives at the top of the document.
+        #|3. *Email-safe output*: all styles are inlined into HTML that email clients understand, with no scripts or external fonts.
+        #|
+        #|Additional ways to use Sigil:
+        #|
+        #|- @theme sets the theme color, @letter selects the letter style, @split selects the divider, and @footer appends the footer.
+        #|- <sig:classic> inserts the personal signature from your Profile.
+        #|- <link:https://example.com|Example link> creates a theme-colored link, and <icon:mail> inserts a built-in icon.
+        #|- <image:name> inserts an image from the library, $$ blocks typeset formulas, and :::chart blocks draw simple charts.
+        #|
+        #|Edit this text directly, or create a new email from the sidebar to start writing.
+        #|
+        #|<sig:classic>
+        #|
+        #|```
+        #|你好，Sigil！
+        #|
+        #|Sigil 是一款基于 Markdown 的邮件排版标记语言，可生成简洁、兼容邮件客户端的 HTML。
+        #|
+        #|它只使用一个强调色和中性灰，内容与样式分离，所有 CSS 内联，不依赖脚本或外部字体。在文档开头设置主题色、信纸、分隔符、页脚和签名，然后用简单文本、链接、图片、公式和图表写正文。你可以直接修改文字，或从左侧新建一封邮件开始写作。
+        #|```
+        #|
+      )
+  }
+}
+
+///|
+fn new_document(title : String, lang : Lang) -> EmailDoc {
+  { id: new_id("doc"), title, source: document_template(lang), }
 }
 
 ///|
 fn default_workspace(lang : Lang) -> WorkspaceMeta {
-  let doc = new_document(tr(lang, "Untitled Email", "未命名邮件"))
+  let doc = new_document(tr(lang, "Untitled Email", "未命名邮件"), lang)
   {
     documents: [doc],
     open_tabs: [doc.id],
@@ -179,6 +266,7 @@ fn normalize_workspace(workspace : WorkspaceMeta, lang : Lang) -> WorkspaceMeta 
     let valid = id == profile_tab_id ||
       id == images_tab_id ||
       id == settings_tab_id ||
+      id == styles_tab_id ||
       find_document(documents, id) is Some(_)
     if valid && !contains_id(open_tabs, id) {
       open_tabs.push(id)

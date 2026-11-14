@@ -191,6 +191,28 @@ textarea {
   cursor: not-allowed;
 }
 
+.sigil-export {
+  height: 28px;
+  padding: 0 14px;
+  border: 1px solid #454545;
+  border-radius: 5px;
+  background: #2d2d2d;
+  color: #d4d4d4;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sigil-export:hover:not(:disabled) {
+  background: #3c3c3c;
+  color: #ffffff;
+}
+
+.sigil-export:disabled {
+  color: #858585;
+  cursor: not-allowed;
+}
+
 .sigil-avatar-button {
   display: grid;
   width: 30px;
@@ -224,6 +246,24 @@ textarea {
   width: 42px;
   height: 42px;
   font-size: 16px;
+}
+
+.sigil-avatar-image {
+  display: block;
+  object-fit: cover;
+}
+
+.sigil-avatar-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.sigil-avatar-control .sigil-avatar-large {
+  width: 48px;
+  height: 48px;
 }
 
 /* Body, activity rail, workspace */
@@ -531,6 +571,11 @@ textarea {
   box-shadow: 0 0 0 2px rgba(197, 134, 192, 0.18);
 }
 
+.sigil-tab-dot.is-styles {
+  background: #4fc1ff;
+  box-shadow: 0 0 0 2px rgba(79, 193, 255, 0.18);
+}
+
 .sigil-tab-close {
   display: grid;
   width: 17px;
@@ -710,6 +755,7 @@ textarea {
   flex: 1 1 auto;
   width: 100%;
   border: 0;
+  outline: none;
   border-radius: 3px;
   background: #f4f4f4;
   box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5);
@@ -1450,6 +1496,21 @@ textarea {
   color: #9aa0a8;
 }
 
+.theme-light .sigil-export {
+  border-color: #d5d8dd;
+  background: #ffffff;
+  color: #3b3f45;
+}
+
+.theme-light .sigil-export:hover:not(:disabled) {
+  background: #f0f1f3;
+  color: #16181b;
+}
+
+.theme-light .sigil-export:disabled {
+  color: #a0a5ad;
+}
+
 .theme-light .sigil-activitybar {
   background: #f3f4f6;
   border-right-color: #dfe1e5;
@@ -1595,6 +1656,31 @@ textarea {
 
 .theme-light .sigil-editor-input::placeholder {
   color: #a0a5ad;
+}
+
+.theme-light .sigil-diagnostics {
+  border-top-color: #e2e4e8;
+  background: #f7f8f9;
+}
+
+.theme-light .sigil-diagnostics-header {
+  color: #8a6d1f;
+}
+
+.theme-light .sigil-diagnostic-line {
+  color: #81878f;
+}
+
+.theme-light .sigil-diagnostic-message {
+  color: #3f444b;
+}
+
+.theme-light .sigil-diagnostic.is-error .sigil-diagnostic-message {
+  color: #a33a2b;
+}
+
+.theme-light .sigil-diagnostic.is-warning .sigil-diagnostic-message {
+  color: #8a6d1f;
 }
 
 .theme-light .sigil-document-input {
@@ -1805,8 +1891,271 @@ textarea {
   color: #81878f;
 }
 
+.theme-light .sigil-styles-tab {
+  background: #f3f4f6;
+}
+
+.theme-light .sigil-style-kind-tabs {
+  border-bottom-color: #dfe1e5;
+}
+
+.theme-light .sigil-style-kind {
+  border-color: #d5d8dd;
+  background: #ffffff;
+  color: #4a4f57;
+}
+
+.theme-light .sigil-style-kind:hover {
+  background: #f0f1f3;
+  color: #16181b;
+}
+
+.theme-light .sigil-style-kind.is-selected {
+  color: #111317;
+}
+
+.theme-light .sigil-style-options {
+  border-color: #dfe1e5;
+  background: #fbfbfc;
+}
+
+.theme-light .sigil-style-options-title,
+.theme-light .sigil-style-option-id {
+  color: #81878f;
+}
+
+.theme-light .sigil-style-option {
+  color: #3f444b;
+}
+
+.theme-light .sigil-style-option:hover {
+  background: #eef0f2;
+  color: #111317;
+}
+
+.theme-light .sigil-style-option.is-selected {
+  background: #e4edf5;
+  color: #111317;
+}
+
+.theme-light .sigil-style-preview {
+  border-color: #dfe1e5;
+  background: #e2e4e7;
+}
+
+.theme-light .sigil-style-preview-bar {
+  border-bottom-color: #dfe1e5;
+  background: #fbfbfc;
+}
+
+.theme-light .sigil-style-preview-title {
+  color: #24272c;
+}
+
+.theme-light .sigil-style-preview-doc {
+  color: #81878f;
+}
+
 .theme-light ::-webkit-scrollbar-thumb {
   background: #c1c5cb;
+}
+
+.sigil-diagnostics {
+  flex: 0 0 auto;
+  max-height: 148px;
+  overflow: auto;
+  padding: 6px 12px 9px;
+  border-top: 1px solid #2a2a2b;
+  background: #1e1e1e;
+}
+
+.sigil-diagnostics-header {
+  padding: 2px 2px 6px;
+  color: #e2c08d;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sigil-diagnostic {
+  display: flex;
+  gap: 8px;
+  padding: 3px 2px;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.sigil-diagnostic-line {
+  flex: 0 0 auto;
+  color: #8c8c8c;
+  font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
+  font-size: 10.5px;
+}
+
+.sigil-diagnostic-message {
+  color: #d4d4d4;
+}
+
+.sigil-diagnostic.is-error .sigil-diagnostic-message {
+  color: #f48771;
+}
+
+.sigil-diagnostic.is-warning .sigil-diagnostic-message {
+  color: #e2c08d;
+}
+
+/* Styles tab */
+
+.sigil-styles-tab {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 32px 24px 44px;
+  background: #1e1e1e;
+}
+
+.sigil-style-kind-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: min(1000px, 100%);
+  padding: 16px 0 18px;
+  border-bottom: 1px solid #303030;
+}
+
+.sigil-style-kind {
+  height: 28px;
+  padding: 0 13px;
+  border: 1px solid var(--sigil-border);
+  border-radius: 4px;
+  background: var(--sigil-surface);
+  color: var(--sigil-text-dim);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.sigil-style-kind:hover {
+  background: var(--sigil-hover);
+  color: var(--sigil-text-strong);
+}
+
+.sigil-style-kind.is-selected {
+  border-color: var(--sigil-accent);
+  color: var(--sigil-text-strong);
+  box-shadow: inset 0 0 0 1px var(--sigil-accent);
+}
+
+.sigil-style-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  width: min(1000px, 100%);
+  padding-top: 20px;
+}
+
+.sigil-style-options {
+  flex: 0 0 220px;
+  padding: 10px;
+  border: 1px solid #333333;
+  border-radius: 6px;
+  background: #252526;
+}
+
+.sigil-style-options-title {
+  padding: 3px 6px 9px;
+  color: #8c8c8c;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sigil-style-option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sigil-style-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #bdbdbd;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sigil-style-option:hover {
+  background: #2d2d2d;
+  color: #ffffff;
+}
+
+.sigil-style-option.is-selected {
+  border-color: rgba(0, 122, 204, 0.5);
+  background: #37373d;
+  color: #ffffff;
+}
+
+.sigil-style-option-name {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sigil-style-option-id {
+  color: #6f6f6f;
+  font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
+  font-size: 9.5px;
+}
+
+.sigil-style-preview {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #333333;
+  border-radius: 6px;
+  background: #181818;
+}
+
+.sigil-style-preview-bar {
+  display: flex;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px;
+  border-bottom: 1px solid #333333;
+  background: #252526;
+}
+
+.sigil-style-preview-title {
+  color: #d4d4d4;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sigil-style-preview-doc {
+  overflow: hidden;
+  color: #8c8c8c;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sigil-style-preview-frame {
+  display: block;
+  width: 100%;
+  height: min(620px, calc(100vh - 260px));
+  border: 0;
+  outline: none;
+  background: #f4f4f4;
 }
 
 @media (max-width: 820px) {

@@ -50,9 +50,9 @@ sigil/
 ├── docs/SPEC.md
 ├── src/
 │   ├── core/           # pure MoonBit logic, no GUI or platform imports
-│   │   ├── types/      # AST/profile/theme placeholders
-│   │   ├── parser/     # reserved for the parser stage
-│   │   ├── render/     # email-safe preview shell
+│   │   ├── types/      # AST, diagnostics, and profile types
+│   │   ├── parser/     # handwritten Sigil markup parser
+│   │   ├── render/     # email-safe HTML renderer and preview shell
 │   │   ├── linter/     # reserved for the linter stage
 │   │   └── themes/     # reserved for the themes stage
 │   ├── frontend/       # Rabbita JS target: workspace, tabs, editor, preview
@@ -69,23 +69,31 @@ sigil/
 - The Images tab and sidebar organize images into nested workspace folders.
   Imports go into the selected folder, each card has a folder menu to move it,
   and inserting an image adds `<image:name>` at the editor cursor.
+- The editor and preview stay in sync as you type. Parsing is best-effort so an
+  incomplete document still previews valid parts, with diagnostics shown under
+  the editor.
+- The Export button writes the rendered email-safe HTML through the browser save
+  dialog.
 - Workspace metadata autosaves on edits; image payloads are stored separately
   so ordinary typing does not rewrite large data URLs.
+- Profile supports an uploaded avatar, shown in the title bar and signature.
+- Letter styles include minimal and card; footers include legal,
+  unsubscribe, and blank; dividers include line, wave, and ornament;
+  signatures include classic, minimal, academic, and compact.
+- New emails start from a bilingual Sigil template: an introduction, a
+  component guide, a signature, and a gray plain-text translation block.
 - The title-bar language button toggles English and Chinese UI chrome. Document
   names, profile values, and image names are treated as user content.
+- The Styles tab previews and applies the basic letter, footer, divider, and
+  signature styles to the selected document.
 - The gear icon in the left activity rail opens the Settings tab.
 - The Settings tab controls application appearance: dark/light theme, accent
   color, comfortable/compact density, editor font size, and language. It never
   changes the email theme color in the document header.
 
-## Stage 0 preview
+## Preview and export
 
-The preview iframe uses the sandbox value `allow-same-origin` and starts with:
-
-```text
-build_preview_shell("<p>Preview area</p>")
-```
-
-The shell implements SPEC.md §5.2: a 100% width outer table, a centered
+The preview iframe uses the sandbox value `allow-same-origin`. Its document is
+rebuilt from the current markup on every edit. The shell implements SPEC.md §5.2: a 100% width outer table, a centered
 `max-width:640px` reading column, 16px body text at 1.7 line height, 14px
 paragraph spacing, and inline CSS. It contains no script element.

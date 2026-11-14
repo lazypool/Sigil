@@ -196,7 +196,7 @@ Rules:
 4. Empty list items → error.
 5. Ordered numbering renders starting from the first item’s number and increments by 1. Non-consecutive numbers produce a warning (“numbers will be renumbered”).
 6. List items may contain `*`, `**`, `<link:...>`, and `<icon:...>`.
-7. List items must not contain `<sig:...>`, `<image:...>`, `$$`, `:::`, `---`, or nested lists.
+7. Block insertions such as `<sig:...>` and `<image:...>` inside list items are rendered as literal text. `$$`, `:::`, `---`, and nested lists are not parsed inside list items.
 
 #### List width limits
 
@@ -317,6 +317,21 @@ B: 20
 - Preview outputs SVG; on send, rasterized to PNG and embedded.
 - Chart type and data fields are validated by the renderer; unknown types → error.
 
+### 3.8 Plain Text Notes
+
+~~~text
+```
+Hello!
+This block is plain text, not code, and keeps its line breaks.
+```
+~~~
+
+- A line consisting exactly of three backtick characters starts a plain text block; another such line closes it.
+- The block is **not** a code block, and its contents are not parsed as markup or insertions.
+- The content renders as escaped plain text in neutral gray, preserving line breaks.
+- It is typically used for translations: put an English translation after a Chinese email, or a Chinese translation after an English email.
+- The block may appear anywhere in the body; an unclosed block → error.
+
 ---
 
 ## 4. Profile and Themes
@@ -378,7 +393,7 @@ type FieldSpec = {
 - Signature: `classic`, `minimal`, `academic`, `compact`
 - Footer: `legal`, `unsubscribe`, `blank`
 - Divider: `line`, `dotted`, `wave`, `space`, `ornament`
-- Letter: `minimal`, `card`, `paper`
+- Letter: `minimal`, `card`
 
 All themes use only the theme color plus neutral grays.
 
@@ -404,7 +419,7 @@ All themes use only the theme color plus neutral grays.
 - Outer 100% width table; inner content column `max-width:640px; width:100%; margin:0 auto`.
 - Body font size 16px, line-height 1.7, paragraph spacing 14px.
 - `strong`: `font-weight:600`.
-- `big`: 18–20px, bold.
+- `big`: 18–22px, bold.
 - Divider: theme color at low opacity; style selected by `@split`.
 - Image: `display:block; margin:0 auto; max-width:100%; height:auto; border:0`.
 - Link: theme color, no underline.

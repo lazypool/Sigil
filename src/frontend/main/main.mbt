@@ -35,6 +35,8 @@ struct Model {
   profile_draft : Profile
   lang : Lang
   prefs : Prefs
+  style_view : StyleKind
+  style_doc_id : String
 }
 
 ///|
@@ -71,6 +73,12 @@ enum Msg {
   SetEditorFontSize(Int32)
   ResetPrefs
   SetLang(Lang)
+  ImportAvatar
+  AvatarImported(String)
+  RemoveAvatar
+  OpenStyles
+  SelectStyleKind(StyleKind)
+  ApplyStyle(String)
 }
 
 ///|
@@ -78,6 +86,16 @@ fn initial_model() -> Model {
   let lang = load_lang()
   let workspace = load_workspace(lang)
   let profile = load_profile()
+  let style_doc_id = match
+    find_document(workspace.documents, workspace.active_tab) {
+    Some(document) => document.id
+    None =>
+      if workspace.documents.is_empty() {
+        ""
+      } else {
+        workspace.documents[0].id
+      }
+  }
   {
     documents: workspace.documents,
     assets: load_assets(),
@@ -94,6 +112,8 @@ fn initial_model() -> Model {
     profile_draft: profile,
     lang,
     prefs: load_prefs(),
+    style_view: LetterStyle,
+    style_doc_id,
   }
 }
 
@@ -237,6 +257,7 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
       let valid = id == profile_tab_id ||
         id == images_tab_id ||
         id == settings_tab_id ||
+        id == styles_tab_id ||
         find_document(model.documents, id) is Some(_)
       if valid {
         let next = {
@@ -269,6 +290,7 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
       let document = new_document(
         tr(model.lang, "Untitled ", "未命名 ") +
         (model.documents.length() + 1).to_string(),
+        model.lang,
       )
       let documents = model.documents.copy()
       documents.push(document)
@@ -356,6 +378,60 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
       save_lang(lang)
       ({ ..model, lang, }, @rabbita.none)
     }
+    ImportAvatar =>
+      (
+        model,
+        @rabbita.perform(data => emit(AvatarImported(data)), import_avatar_task),
+      )
+    AvatarImported(data) =>
+      if data == "" {
+        (model, @rabbita.none)
+      } else {
+        (
+          {
+            ..model,
+            profile_draft: model.profile_draft.with_field(Avatar, data),
+          },
+          @rabbita.none,
+        )
+      }
+    RemoveAvatar =>
+      (
+        { ..model, profile_draft: model.profile_draft.with_field(Avatar, ""), },
+        @rabbita.none,
+      )
+    OpenStyles => {
+      let style_doc_id = match active_document(model) {
+        Some(document) => document.id
+        None => model.style_doc_id
+      }
+      let next = {
+        ..model,
+        style_doc_id,
+        open_tabs: ensure_tab(model.open_tabs, styles_tab_id),
+        active_tab: styles_tab_id,
+      }
+      persist(next)
+      (next, @rabbita.none)
+    }
+    SelectStyleKind(kind) => ({ ..model, style_view: kind, }, @rabbita.none)
+    ApplyStyle(value) =>
+      match find_document(model.documents, model.style_doc_id) {
+        Some(document) => {
+          let source = apply_style(document.source, model.style_view, value)
+          let next = {
+            ..model,
+            documents: with_document_source(
+              model.documents,
+              document.id,
+              source,
+            ),
+          }
+          persist(next)
+          (next, @rabbita.none)
+        }
+        None => (model, @rabbita.none)
+      }
     ImportImages =>
       (
         model,
@@ -474,6 +550,17 @@ fn icon_image() -> Html {
 }
 
 ///|
+fn icon_styles() -> Html {
+  icon_svg([
+    @svg.circle(cx=12, cy=12, r=8),
+    @svg.circle(cx=9, cy=9, r=1),
+    @svg.circle(cx=15, cy=9, r=1),
+    @svg.circle(cx=9, cy=15, r=1),
+    @svg.path(d="M15.5 15.5h1a2.5 2.5 0 0 1 0 5h-5"),
+  ])
+}
+
+///|
 fn icon_gear() -> Html {
   icon_svg([
     @svg.path(d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"),
@@ -481,6 +568,54 @@ fn icon_gear() -> Html {
       d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z",
     ),
   ])
+}
+
+///|
+fn avatar_view(profile : Profile, classes : String) -> Html {
+  if profile.avatar != "" {
+    img(src=profile.avatar, alt="", class=classes + " sigil-avatar-image")
+  } else {
+    span(class=classes, profile.initial())
+  }
+}
+
+///|
+fn avatar_picker(emit : Emit[Msg]) -> Html {
+  input(
+    input_type=@html.InputType::File,
+    id="sigil-avatar-input",
+    accept="image/*",
+    class="sigil-file-input",
+    on_change=emit.map(_ => ImportAvatar),
+  )
+}
+
+///|
+fn avatar_upload_button(label : String) -> Html {
+  button(
+    type_="button",
+    class="sigil-button is-small",
+    attrs=@html.Attrs::build().on_click(_ => {
+      open_avatar_picker()
+      @rabbita.none
+    }),
+    [span(label)],
+  )
+}
+
+///|
+fn export_button(model : Model) -> Html {
+  button(
+    type_="button",
+    class="sigil-export",
+    title=tr(model.lang, "Export HTML", "导出 HTML"),
+    disabled=active_document(model) is None,
+    attrs=@html.Attrs::build().on_click(_ => {
+      export_active_document(model)
+      @rabbita.none
+    }),
+    [span(tr(model.lang, "Export", "导出"))],
+  )
 }
 
 ///|
@@ -513,6 +648,7 @@ fn titlebar(emit : Emit[Msg], model : Model) -> Html {
         ),
         span(class="sigil-theme-value", "#2563EB"),
       ]),
+      export_button(model),
       button(
         type_="button",
         class="sigil-send",
@@ -524,7 +660,7 @@ fn titlebar(emit : Emit[Msg], model : Model) -> Html {
         class="sigil-avatar-button",
         title=tr(model.lang, "Profile", "个人资料"),
         on_click=emit(OpenProfile),
-        [span(class="sigil-avatar", model.profile.initial())],
+        [avatar_view(model.profile, "sigil-avatar")],
       ),
     ]),
   ])
@@ -534,6 +670,7 @@ fn titlebar(emit : Emit[Msg], model : Model) -> Html {
 fn activity_bar(emit : Emit[Msg], model : Model) -> Html {
   let profile_active = model.active_tab == profile_tab_id
   let images_active = model.active_tab == images_tab_id
+  let styles_active = model.active_tab == styles_tab_id
   div(class="sigil-activitybar", [
     div(class="sigil-activity-group", [
       button(
@@ -578,6 +715,17 @@ fn activity_bar(emit : Emit[Msg], model : Model) -> Html {
       ),
       button(
         type_="button",
+        class=if styles_active {
+          "sigil-activity-button is-active"
+        } else {
+          "sigil-activity-button"
+        },
+        title=tr(model.lang, "Styles", "样式"),
+        on_click=emit(OpenStyles),
+        [icon_styles()],
+      ),
+      button(
+        type_="button",
         class=if model.active_tab == settings_tab_id {
           "sigil-activity-button is-active"
         } else {
@@ -599,6 +747,8 @@ fn tab_title(model : Model, id : String) -> String {
     tr(model.lang, "Images", "图片")
   } else if id == settings_tab_id {
     tr(model.lang, "Settings", "设置")
+  } else if id == styles_tab_id {
+    tr(model.lang, "Styles", "样式")
   } else {
     match find_document(model.documents, id) {
       Some(document) => document.title
@@ -615,6 +765,8 @@ fn tab_dot_class(id : String) -> String {
     "sigil-tab-dot is-image"
   } else if id == settings_tab_id {
     "sigil-tab-dot is-settings"
+  } else if id == styles_tab_id {
+    "sigil-tab-dot is-styles"
   } else {
     "sigil-tab-dot"
   }
@@ -801,7 +953,50 @@ fn sidebar(emit : Emit[Msg], model : Model) -> Html {
 }
 
 ///|
-fn editor_pane(emit : Emit[Msg], model : Model, document : EmailDoc) -> Html {
+fn diagnostics_panel(
+  diagnostics : Array[@types.Diagnostic],
+  lang : Lang,
+) -> Html {
+  if diagnostics.is_empty() {
+    return @html.nothing
+  }
+  let shown = if diagnostics.length() > 4 { 4 } else { diagnostics.length() }
+  let rows : Array[Html] = []
+  for index = 0; index < shown; index = index + 1 {
+    let diagnostic = diagnostics[index]
+    rows.push(
+      div(
+        class=if diagnostic.severity is @types.Error {
+          "sigil-diagnostic is-error"
+        } else {
+          "sigil-diagnostic is-warning"
+        },
+        [
+          span(
+            class="sigil-diagnostic-line",
+            tr(lang, "Line ", "第 ") + diagnostic.line.to_string(),
+          ),
+          span(class="sigil-diagnostic-message", diagnostic.message),
+        ],
+      ),
+    )
+  }
+  div(class="sigil-diagnostics", [
+    div(
+      class="sigil-diagnostics-header",
+      tr(lang, "Problems", "问题") + " " + diagnostics.length().to_string(),
+    ),
+    div(class="sigil-diagnostics-list", rows),
+  ])
+}
+
+///|
+fn editor_pane(
+  emit : Emit[Msg],
+  model : Model,
+  document : EmailDoc,
+  diagnostics : Array[@types.Diagnostic],
+) -> Html {
   div(
     class="sigil-editor",
     style=["flex:0 0 " + model.split_pct.to_string() + "%"],
@@ -830,15 +1025,14 @@ fn editor_pane(emit : Emit[Msg], model : Model, document : EmailDoc) -> Html {
         on_input=emit.map(value => SourceChanged(value)),
         ([] : Array[Html]),
       ),
+      diagnostics_panel(diagnostics, model.lang),
     ],
   )
 }
 
 ///|
-fn preview_pane(lang : Lang) -> Html {
-  let preview_attrs = @html.Attrs::build().srcdoc(
-    @render.build_preview_shell("<p>Preview area</p>"),
-  )
+fn preview_pane(lang : Lang, preview_html : String) -> Html {
+  let preview_attrs = @html.Attrs::build().srcdoc(preview_html)
   div(class="sigil-preview", [
     div(class="sigil-pane-bar", [
       span(class="sigil-pane-title", tr(lang, "Preview", "预览")),
@@ -864,15 +1058,21 @@ fn compose_workspace(
   model : Model,
   document : EmailDoc,
 ) -> Html {
+  let result = @parser.parse(document.source)
+  let preview_html = @render.render_email_html(
+    result.document,
+    to_core_profile(model.profile),
+    asset_map(model.assets),
+  )
   div(class="sigil-workspace", [
-    editor_pane(emit, model, document),
+    editor_pane(emit, model, document, result.diagnostics),
     div(
       class="sigil-splitter",
       title=tr(model.lang, "Drag to resize", "拖动调整宽度"),
       on_mousedown=emit.map(_ => BeginDrag),
       [div(class="sigil-splitter-grip", ([] : Array[Html]))],
     ),
-    preview_pane(model.lang),
+    preview_pane(model.lang, preview_html),
   ])
 }
 
@@ -929,10 +1129,7 @@ fn profile_tab(emit : Emit[Msg], model : Model) -> Html {
         ),
       ]),
       div(class="sigil-profile-summary", [
-        span(
-          class="sigil-avatar sigil-avatar-large",
-          model.profile_draft.initial(),
-        ),
+        avatar_view(model.profile_draft, "sigil-avatar sigil-avatar-large"),
         div(class="sigil-profile-summary-text", [
           span(
             class="sigil-profile-summary-name",
@@ -956,6 +1153,40 @@ fn profile_tab(emit : Emit[Msg], model : Model) -> Html {
           ),
         ]),
         span(class="sigil-profile-progress", model.profile_draft.completeness()),
+      ]),
+      div(class="sigil-settings-section", [
+        div(class="sigil-settings-row", [
+          div(class="sigil-settings-copy", [
+            span(
+              class="sigil-settings-title",
+              tr(model.lang, "Avatar", "头像"),
+            ),
+            span(
+              class="sigil-settings-description",
+              tr(
+                model.lang,
+                "Shown in the title bar, profile summary, and signature themes.",
+                "用于标题栏、资料摘要和签名主题。",
+              ),
+            ),
+          ]),
+          div(class="sigil-avatar-control", [
+            avatar_view(model.profile_draft, "sigil-avatar sigil-avatar-large"),
+            avatar_upload_button(
+              tr(model.lang, "Upload avatar", "上传头像"),
+            ),
+            if model.profile_draft.avatar != "" {
+              button(
+                type_="button",
+                class="sigil-button is-small is-danger",
+                on_click=emit(RemoveAvatar),
+                tr(model.lang, "Remove", "移除"),
+              )
+            } else {
+              @html.nothing
+            },
+          ]),
+        ]),
       ]),
       profile_section(tr(model.lang, "Identity", "身份"), [
         profile_field(
@@ -1453,6 +1684,129 @@ fn settings_tab(emit : Emit[Msg], model : Model) -> Html {
 }
 
 ///|
+fn styles_tab(emit : Emit[Msg], model : Model) -> Html {
+  let target = match find_document(model.documents, model.style_doc_id) {
+    Some(document) => Some(document)
+    None =>
+      if model.documents.is_empty() {
+        None
+      } else {
+        Some(model.documents[0])
+      }
+  }
+  match target {
+    None =>
+      div(class="sigil-styles-tab", [
+        div(class="sigil-empty", [
+          span(
+            class="sigil-empty-title",
+            tr(
+              model.lang,
+              "No document to style",
+              "没有可设置样式的文档",
+            ),
+          ),
+        ]),
+      ])
+    Some(target) => {
+      let kinds : Array[StyleKind] = [
+        LetterStyle,
+        FooterStyle,
+        SplitStyle,
+        SignatureStyle,
+      ]
+      let kind_buttons : Array[Html] = []
+      for kind in kinds {
+        let selected = model.style_view == kind
+        kind_buttons.push(
+          button(
+            type_="button",
+            class=if selected {
+              "sigil-style-kind is-selected"
+            } else {
+              "sigil-style-kind"
+            },
+            on_click=emit(SelectStyleKind(kind)),
+            [span(style_kind_label(model.lang, kind))],
+          ),
+        )
+      }
+      let current = normalized_style(
+        model.style_view,
+        current_style(target.source, model.style_view),
+      )
+      let option_buttons : Array[Html] = []
+      for id in style_options(model.style_view) {
+        let selected = current == id
+        option_buttons.push(
+          button(
+            type_="button",
+            class=if selected {
+              "sigil-style-option is-selected"
+            } else {
+              "sigil-style-option"
+            },
+            title=style_label(model.lang, model.style_view, id),
+            on_click=emit(ApplyStyle(id)),
+            [
+              span(
+                class="sigil-style-option-name",
+                style_label(model.lang, model.style_view, id),
+              ),
+              span(class="sigil-style-option-id", id),
+            ],
+          ),
+        )
+      }
+      let preview_html = style_preview_html(model, target)
+      div(class="sigil-styles-tab", [
+        div(class="sigil-profile-heading", [
+          span(
+            class="sigil-profile-kicker",
+            tr(model.lang, "Document / Styles", "文档 / 样式"),
+          ),
+          span(class="sigil-profile-title", tr(model.lang, "Styles", "样式")),
+          span(
+            class="sigil-profile-subtitle",
+            tr(
+              model.lang,
+              "Preview and apply the basic letter, footer, divider, and signature styles to the selected email.",
+              "预览并应用信纸、页脚、分隔符和签名的基础样式。",
+            ),
+          ),
+        ]),
+        div(class="sigil-style-kind-tabs", kind_buttons),
+        div(class="sigil-style-layout", [
+          div(class="sigil-style-options", [
+            div(
+              class="sigil-style-options-title",
+              style_kind_label(model.lang, model.style_view) +
+              tr(model.lang, " styles", " 样式"),
+            ),
+            div(class="sigil-style-option-list", option_buttons),
+          ]),
+          div(class="sigil-style-preview", [
+            div(class="sigil-style-preview-bar", [
+              span(
+                class="sigil-style-preview-title",
+                tr(model.lang, "Live preview", "实时预览"),
+              ),
+              span(class="sigil-style-preview-doc", target.title),
+            ]),
+            iframe(
+              class="sigil-style-preview-frame",
+              title=tr(model.lang, "Style preview", "样式预览"),
+              sandbox="allow-same-origin",
+              attrs=@html.Attrs::build().srcdoc(preview_html),
+            ),
+          ]),
+        ]),
+      ])
+    }
+  }
+}
+
+///|
 fn empty_workspace(emit : Emit[Msg], model : Model) -> Html {
   div(class="sigil-empty", [
     span(class="sigil-empty-kicker", tr(model.lang, "Workspace", "工作区")),
@@ -1485,6 +1839,8 @@ fn main_content(emit : Emit[Msg], model : Model) -> Html {
     images_tab(emit, model)
   } else if model.active_tab == settings_tab_id {
     settings_tab(emit, model)
+  } else if model.active_tab == styles_tab_id {
+    styles_tab(emit, model)
   } else {
     match active_document(model) {
       Some(document) => compose_workspace(emit, model, document)
@@ -1552,6 +1908,7 @@ fn view(emit : Emit[Msg], model : Model) -> Html {
   div(class=shell_class, style=shell_style, attrs=shell_attrs, [
     titlebar(emit, model),
     image_picker(emit),
+    avatar_picker(emit),
     div(class="sigil-body", [
       activity_bar(emit, model),
       sidebar(emit, model),
