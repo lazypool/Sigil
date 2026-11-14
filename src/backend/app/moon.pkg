@@ -1,0 +1,12 @@
+import {
+  "moonbitlang/core/async",
+  "moonbit-community/proton",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")
+
+options(
+  "allow-experimental-packages": true,
+)

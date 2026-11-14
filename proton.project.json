@@ -1,0 +1,19 @@
+{
+  "identifier": "com.example.sigil",
+  "backend": {
+    "path": "src/backend",
+    "package": "app"
+  },
+  "package": {
+    "product_name": "Sigil",
+    "version": "0.1.0",
+    "output": "dist"
+  },
+  "frontend": {
+    "path": "src/frontend",
+    "dev_url": "http://127.0.0.1:4300",
+    "before_dev": "warren dev --browser-entry main --direct --port 4300",
+    "before_build": "warren build --browser-entry main",
+    "dist": "dist"
+  }
+}

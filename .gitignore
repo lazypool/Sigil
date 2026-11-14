@@ -1,0 +1,8 @@
+.DS_Store
+_build/
+dist/
+.mooncakes/
+.moonagent/
+src/frontend/dist/
+
+pkg.generated.mbti

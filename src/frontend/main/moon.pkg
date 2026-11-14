@@ -1,0 +1,17 @@
+import {
+  "xiao/sigil/core/render",
+  "moonbit-community/rabbita",
+  "moonbit-community/rabbita/dom",
+  "moonbit-community/rabbita/html",
+  "moonbit-community/rabbita/svg",
+  "moonbitlang/core/json",
+  "moonbitlang/core/async/js_async",
+}
+
+supported_targets = "js"
+
+options(
+  "allow-experimental-packages": [ "moonbitlang/core/async/js_async" ],
+)
+
+pkgtype(kind: "executable")
