@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-labelledby="sigil-banner-title sigil-banner-desc">
+  <title id="sigil-banner-title">Sigil — markup-first email composer</title>
+  <desc id="sigil-banner-desc">A dark banner with a gradient Sigil wordmark, an accent-tinted grid, and a small Sigil markup preview.</desc>
+  <defs>
+    <linearGradient id="sigil-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#080d19"/>
+      <stop offset="0.55" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#0b1220"/>
+    </linearGradient>
+    <radialGradient id="sigil-glow" cx="0.84" cy="0.16" r="0.72">
+      <stop offset="0" stop-color="#2563eb" stop-opacity="0.52"/>
+      <stop offset="0.55" stop-color="#2563eb" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sigil-word" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.55" stop-color="#dbeafe"/>
+      <stop offset="1" stop-color="#60a5fa"/>
+    </linearGradient>
+    <linearGradient id="sigil-line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2563eb" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#60a5fa" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="sigil-grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#1e293b" stroke-width="1"/>
+    </pattern>
+    <filter id="sigil-soft-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="320" rx="28" fill="url(#sigil-bg)"/>
+  <rect width="1280" height="320" rx="28" fill="url(#sigil-grid)" opacity="0.34"/>
+  <rect width="1280" height="320" rx="28" fill="url(#sigil-glow)"/>
+  <circle cx="1120" cy="58" r="90" fill="#2563eb" opacity="0.16" filter="url(#sigil-soft-glow)"/>
+
+  <text x="80" y="176" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="104" font-weight="800" letter-spacing="-5" fill="url(#sigil-word)">Sigil</text>
+  <text x="84" y="218" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="600" letter-spacing="4.5" fill="#7dd3fc">MARKUP-FIRST EMAIL COMPOSER</text>
+  <text x="84" y="262" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" fill="#94a3b8">One accent color. One reading column. Email-safe output.</text>
+
+  <rect x="84" y="288" width="1112" height="1" fill="url(#sigil-line)"/>
+
+  <g transform="translate(858 66)">
+    <rect width="342" height="188" rx="18" fill="#0b1220" stroke="#1e293b" stroke-width="1"/>
+    <circle cx="22" cy="22" r="5" fill="#f87171"/>
+    <circle cx="40" cy="22" r="5" fill="#fbbf24"/>
+    <circle cx="58" cy="22" r="5" fill="#34d399"/>
+    <text x="82" y="27" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" fill="#64748b">compose.sigil</text>
+    <text x="24" y="68" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#38bdf8">@theme</text>
+    <text x="105" y="68" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#fbbf24">#2563EB</text>
+    <text x="24" y="94" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#38bdf8">@letter</text>
+    <text x="105" y="94" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#fbbf24">card</text>
+    <text x="24" y="120" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#38bdf8">@split</text>
+    <text x="105" y="120" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#fbbf24">wave</text>
+    <text x="24" y="152" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#c084fc">**Hello, Sigil!**</text>
+    <text x="24" y="174" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#34d399">&lt;link:https://sigil.app|Sigil&gt;</text>
+  </g>
+</svg>
