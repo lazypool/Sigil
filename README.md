@@ -1,101 +1,159 @@
-# Sigil
+<p align="center">
+  <img src="docs/banner.svg" alt="Sigil — markup-first email composer" width="100%" />
+</p>
 
-A minimal markup-based email composer built with MoonBit and Proton.
+<p align="center">
+  <a href="docs/SPEC.md"><strong>Specification</strong></a>
+  &nbsp;·&nbsp;
+  <a href="#quick-start"><strong>Quick start</strong></a>
+  &nbsp;·&nbsp;
+  <a href="#syntax-at-a-glance"><strong>Syntax</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/lazypool/Sigil/issues"><strong>Issues</strong></a>
+  &nbsp;·&nbsp;
+  <a href="README-zh.md"><strong>简体中文</strong></a>
+</p>
 
-Stage 0 provides a workspace shell: a VS Code-style title bar, activity rail,
-tabbed editor, resizable editor/preview split, autosaved local workspace, an
-inline Profile tab, and an image library. Documents, open tabs, split position,
-profile fields, and imported images persist in browser storage until native
-storage is added in a later stage. Images are imported once and inserted as
-`<image:...>` lines, so users never paste absolute paths. Parsing, linting,
-themes, and SMTP are intentionally not implemented yet.
+<p align="center">
+  <img src="https://img.shields.io/badge/MoonBit-0.1.0-6d28d9?style=for-the-badge" alt="MoonBit" />
+  <img src="https://img.shields.io/badge/Desktop-Proton-2563eb?style=for-the-badge" alt="Proton" />
+  <img src="https://img.shields.io/badge/UI-Rabbita-0ea5e9?style=for-the-badge" alt="Rabbita" />
+  <img src="https://img.shields.io/badge/License-Apache--2.0-22c55e?style=for-the-badge" alt="Apache 2.0" />
+</p>
 
-## Requirements
+<h3 align="center">Write email like a document. Ship HTML that survives every inbox.</h3>
 
-- MoonBit toolchain (`moon`)
-- Proton CLI and runtime: `moon install moonbit-community/proton_cli`
-- Warren frontend dev server: `moon install moonbit-community/warren@0.4.5`
+<p align="center">
+  Sigil is a desktop email composer built around a small, readable markup language.
+  It keeps content separate from style, renders a live email-safe preview, and
+  never asks you to hand-write table layouts.
+</p>
 
-`proton_cli setup` prepares the shared CEF runtime used by the desktop window.
-Install the native build prerequisites for your platform (for example GTK 3 and
-CEF dependencies on Linux) before running the app.
+---
 
-## Commands
+![Sigil dark workspace](docs/sigil.png)
+
+<p align="center"><sub>Syntax-highlighted editor, live 640px preview, tabs, image library, and profile-backed signatures.</sub></p>
+
+## Why Sigil
+
+| Principle | What it means |
+| --- | --- |
+| **Markup, not formatting** | Paragraphs, emphasis, lists, links, images, signatures, formulas, and charts are expressed as plain text. |
+| **Email-safe by default** | The renderer produces tables and inline CSS, without scripts, external fonts, flexbox, or grid. |
+| **One accent color** | The whole message shares a single theme color; everything else is neutral. |
+| **Content stays portable** | Documents are text. Style decisions live in the header, profile data lives in the profile, and layouts belong to themes. |
+| **Local-first workspace** | Documents, open tabs, split position, profile fields, preferences, and images autosave in browser storage. |
+
+## What is inside
+
+- **A real workspace** — multiple documents, a reopenable document list, tabs, and an autosaved editor/preview split.
+- **A live preview** — every keystroke reparses the document and rebuilds a sandboxed email preview.
+- **Syntax highlighting** — header directives, dividers, lists, emphasis, insertions, links, and block constructs are color-coded.
+- **A profile tab** — name, contact details, education, links, and avatar feed signatures without putting personal data in the document.
+- **An image library** — import images into nested folders and insert them by name as `<image:...>`.
+- **Style presets** — preview and apply letter, footer, divider, and signature styles to the active document.
+- **Appearance controls** — dark/light themes, accent color, density, editor font size, and English/Chinese UI chrome.
+- **HTML export** — save the rendered email-safe HTML through the browser save dialog.
+
+| Area | Details |
+| --- | --- |
+| **Editor** | Best-effort parsing with diagnostics, synchronized syntax overlay, and cursor-aware insertions. |
+| **Preview** | 100% width outer table, centered `max-width: 640px` column, 16px body text at 1.7 line height, no scripts. |
+| **Documents** | Bilingual starter template, multiple restored tabs, and autosaved local metadata. |
+| **Profile** | Shared profile fields feed signature themes; uploaded avatar appears in the title bar and signature. |
+
+## Syntax at a glance
+
+~~~text
+@theme #2563EB
+@footer legal
+@split wave
+@letter card
+
+**Hello, Sigil!**
+
+Sigil is a *markup-first* email composer. It turns simple text into
+clean, email-safe HTML with one accent color and a fixed reading column.
+
+---
+
+1. *One theme color*: the whole message shares a single accent.
+2. *Declarative layout*: letter, footer, divider, and signature are selected in the header
+3. *Portable output*: inline CSS, tables, and no scripts.
+
+- <link:https://github.com/lazypool/Sigil|View the source>
+- <icon:mail> Insert a built-in icon
+- <image:product.png> Insert a library image
+
+<sig:classic>
+
+```
+Hello, Sigil!
+This block is plain text, not code, and keeps its line breaks.
+```
+~~~
+
+The full grammar — CJK line joining, list width checks, formula and chart blocks, diagnostics, and theme ids — lives in [`docs/SPEC.md`](docs/SPEC.md).
+
+## Quick start
+
+**Requirements:** the MoonBit toolchain (`moon`), the Proton CLI/runtime, and the Warren frontend dev server.
 
 ```sh
-moon check        # type-check all workspace modules
-moon test         # run core and workspace tests
-proton_cli dev    # start Warren and open the Sigil desktop window
+git clone https://github.com/lazypool/Sigil.git
+cd Sigil
+
+moon install moonbit-community/proton_cli
+moon install moonbit-community/warren@0.4.5
+
+moon check
+moon test
+proton_cli dev
 ```
 
-Optional build and packaging checks:
+`proton_cli setup` prepares the shared CEF runtime. Install the native build prerequisites for your platform (for example GTK 3 and CEF dependencies on Linux) before opening the desktop window.
+
+Useful checks:
 
 ```sh
 proton_cli build
 proton_cli package --dry-run
 ```
 
-Proton 0.9 reads `proton.project.json`. `proton.conf.json` is kept as a
-compatibility symlink to the same file.
-
-## Directory layout
+## Project layout
 
 ```text
 sigil/
-├── moon.mod            # root module: core logic
-├── moon.mod.json       # legacy module descriptor required by the task
-├── moon.work           # workspace: root, src/frontend, src/backend
-├── proton.project.json # Proton project configuration
-├── proton.conf.json    # symlink to proton.project.json
-├── docs/SPEC.md
+├── docs/
+│   ├── SPEC.md             # language specification
+│   ├── banner.svg          # README artwork
+│   └── sigil*.png          # workspace screenshots
 ├── src/
-│   ├── core/           # pure MoonBit logic, no GUI or platform imports
-│   │   ├── types/      # AST, diagnostics, and profile types
-│   │   ├── parser/     # handwritten Sigil markup parser
-│   │   ├── render/     # email-safe HTML renderer and preview shell
-│   │   ├── linter/     # reserved for the linter stage
-│   │   └── themes/     # reserved for the themes stage
-│   ├── frontend/       # Rabbita JS target: workspace, tabs, editor, preview
-│   └── backend/        # Proton native target: desktop window shell
-├── tests/
-└── README.md
+│   ├── core/
+│   │   ├── types/          # AST, diagnostics, and profile types
+│   │   ├── parser/         # handwritten Sigil markup parser
+│   │   ├── highlight/      # editor syntax tokenizer
+│   │   ├── render/         # email-safe HTML renderer and preview shell
+│   │   ├── linter/         # reserved for the linter stage
+│   │   └── themes/         # reserved for the theme-pack stage
+│   ├── frontend/           # Rabbita workspace, tabs, editor, preview
+│   └── backend/            # Proton native desktop shell
+├── moon.mod
+├── moon.work
+└── proton.project.json
 ```
 
-## Workspace behavior
+## Light theme, same reading column
 
-- The tab strip holds multiple email documents plus Profile and Images tabs.
-- The Documents list in the sidebar reopens closed files without losing them.
-- Profile is a real tab with sectioned settings, not a modal dialog.
-- The Images tab and sidebar organize images into nested workspace folders.
-  Imports go into the selected folder, each card has a folder menu to move it,
-  and inserting an image adds `<image:name>` at the editor cursor.
-- The editor and preview stay in sync as you type. Parsing is best-effort so an
-  incomplete document still previews valid parts, with diagnostics shown under
-  the editor.
-- The editor highlights Sigil syntax: header directives, dividers, list markers,
-  emphasis, insertions, links, and plain-text, formula, and chart blocks.
-- The Export button writes the rendered email-safe HTML through the browser save
-  dialog.
-- Workspace metadata autosaves on edits; image payloads are stored separately
-  so ordinary typing does not rewrite large data URLs.
-- Profile supports an uploaded avatar, shown in the title bar and signature.
-- Letter styles include minimal and card; footers include legal,
-  unsubscribe, and blank; dividers include line, wave, and ornament;
-  signatures include classic, minimal, academic, and compact.
-- New emails start from a bilingual Sigil template: an introduction, a
-  component guide, a signature, and a gray plain-text translation block.
-- The title-bar language button toggles English and Chinese UI chrome. Document
-  names, profile values, and image names are treated as user content.
-- The Styles tab previews and applies the basic letter, footer, divider, and
-  signature styles to the selected document.
-- The gear icon in the left activity rail opens the Settings tab.
-- The Settings tab controls application appearance: dark/light theme, accent
-  color, comfortable/compact density, editor font size, and language. It never
-  changes the email theme color in the document header.
+<p align="center">
+  <img src="docs/sigil-light.png" alt="Sigil light workspace" width="100%" />
+</p>
 
-## Preview and export
+## Status
 
-The preview iframe uses the sandbox value `allow-same-origin`. Its document is
-rebuilt from the current markup on every edit. The shell implements SPEC.md §5.2: a 100% width outer table, a centered
-`max-width:640px` reading column, 16px body text at 1.7 line height, 14px
-paragraph spacing, and inline CSS. It contains no script element.
+Stage 0 is a complete local authoring workspace. The next milestones are linting, theme packs, native storage, and SMTP sending.
+
+## License
+
+Apache-2.0. See the project metadata or the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
