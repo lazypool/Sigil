@@ -1,4 +1,5 @@
 import {
+  "xiao/sigil/core/highlight",
   "xiao/sigil/core/render",
   "xiao/sigil/core/parser",
   "xiao/sigil/core/types",

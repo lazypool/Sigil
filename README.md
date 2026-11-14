@@ -72,6 +72,8 @@ sigil/
 - The editor and preview stay in sync as you type. Parsing is best-effort so an
   incomplete document still previews valid parts, with diagnostics shown under
   the editor.
+- The editor highlights Sigil syntax: header directives, dividers, list markers,
+  emphasis, insertions, links, and plain-text, formula, and chart blocks.
 - The Export button writes the rendered email-safe HTML through the browser save
   dialog.
 - Workspace metadata autosaves on edits; image payloads are stored separately

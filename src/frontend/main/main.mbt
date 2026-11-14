@@ -1013,18 +1013,22 @@ fn editor_pane(
           tr(model.lang, " chars", " 字符"),
         ),
       ]),
-      textarea(
-        id="sigil-editor",
-        class="sigil-editor-input",
-        value=document.source,
-        placeholder=tr(
-          model.lang,
-          "Write your email markup here...",
-          "在此输入邮件标记...",
+      div(class="sigil-editor-field", [
+        highlighted_source(document.source),
+        textarea(
+          id="sigil-editor",
+          class="sigil-editor-input",
+          value=document.source,
+          placeholder=tr(
+            model.lang,
+            "Write your email markup here...",
+            "在此输入邮件标记...",
+          ),
+          on_input=emit.map(source_changed),
+          attrs=editor_input_attrs(),
+          ([] : Array[Html]),
         ),
-        on_input=emit.map(value => SourceChanged(value)),
-        ([] : Array[Html]),
-      ),
+      ]),
       diagnostics_panel(diagnostics, model.lang),
     ],
   )

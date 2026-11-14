@@ -723,24 +723,129 @@ textarea {
   background: #1e1e1e;
 }
 
-.sigil-editor-input {
+.sigil-editor-field {
+  position: relative;
   flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  background: #1e1e1e;
+}
+
+.sigil-highlight,
+.sigil-editor-input {
+  position: absolute;
+  inset: 0;
   width: 100%;
+  height: 100%;
+  margin: 0;
   padding: 14px 16px;
   border: 0;
-  outline: none;
-  resize: none;
-  background: #1e1e1e;
-  color: #d4d4d4;
-  caret-color: #aeafad;
   font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
   font-size: var(--sigil-editor-font-size, 13px);
   line-height: 1.68;
+  letter-spacing: normal;
   tab-size: 2;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.sigil-highlight {
+  overflow: hidden;
+  padding-right: 26px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  pointer-events: none;
+}
+
+.sigil-editor-input {
+  z-index: 1;
+  resize: none;
+  outline: none;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  background: transparent;
+  color: transparent;
+  caret-color: #aeafad;
+}
+
+.sigil-editor-input::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+.sigil-editor-input:hover::-webkit-scrollbar-thumb {
+  background: #424242;
+}
+
+.sigil-editor-input::selection {
+  background: rgba(38, 79, 120, 0.72);
+  color: transparent;
 }
 
 .sigil-editor-input::placeholder {
   color: #5c5c5c;
+}
+
+.sigil-tok-header-key {
+  color: #569cd6;
+}
+
+.sigil-tok-header-value {
+  color: #ce9178;
+}
+
+.sigil-tok-divider,
+.sigil-tok-fence {
+  color: #6a9955;
+}
+
+.sigil-tok-list {
+  color: #d7ba7d;
+}
+
+.sigil-tok-strong-marker,
+.sigil-tok-big-marker {
+  color: #c586c0;
+}
+
+.sigil-tok-strong,
+.sigil-tok-big {
+  color: #dcdcaa;
+}
+
+.sigil-tok-insertion {
+  color: #4ec9b0;
+}
+
+.sigil-tok-insertion-target {
+  color: #9cdcfe;
+}
+
+.sigil-tok-link {
+  color: #4fc1ff;
+}
+
+.sigil-tok-escape {
+  color: #d7ba7d;
+}
+
+.sigil-tok-formula {
+  color: #c586c0;
+}
+
+.sigil-tok-chart-key {
+  color: #9cdcfe;
+}
+
+.sigil-tok-chart-value {
+  color: #b5cea8;
+}
+
+.sigil-tok-plaintext {
+  color: #8c8c8c;
+}
+
+.sigil-tok-invalid {
+  color: #f44747;
 }
 
 .sigil-preview-stage {
@@ -1644,18 +1749,100 @@ textarea {
   color: #81878f;
 }
 
-.theme-light .sigil-editor {
+.theme-light .sigil-editor,
+.theme-light .sigil-editor-field {
   background: #ffffff;
 }
 
-.theme-light .sigil-editor-input {
+.theme-light .sigil-highlight {
   background: #ffffff;
   color: #24272c;
+}
+
+.theme-light .sigil-editor-input {
+  background: transparent;
+  color: transparent;
   caret-color: #24272c;
+}
+
+.theme-light .sigil-editor-input::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+.theme-light .sigil-editor-input:hover::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+}
+
+.theme-light .sigil-editor-input::selection {
+  background: rgba(173, 214, 255, 0.72);
+  color: transparent;
 }
 
 .theme-light .sigil-editor-input::placeholder {
   color: #a0a5ad;
+}
+
+.theme-light .sigil-tok-header-key {
+  color: #0451a5;
+}
+
+.theme-light .sigil-tok-header-value {
+  color: #a31515;
+}
+
+.theme-light .sigil-tok-divider,
+.theme-light .sigil-tok-fence {
+  color: #008000;
+}
+
+.theme-light .sigil-tok-list {
+  color: #b75501;
+}
+
+.theme-light .sigil-tok-strong-marker,
+.theme-light .sigil-tok-big-marker {
+  color: #af00db;
+}
+
+.theme-light .sigil-tok-strong,
+.theme-light .sigil-tok-big {
+  color: #795e26;
+}
+
+.theme-light .sigil-tok-insertion {
+  color: #267f99;
+}
+
+.theme-light .sigil-tok-insertion-target {
+  color: #0070c1;
+}
+
+.theme-light .sigil-tok-link {
+  color: #0066cc;
+}
+
+.theme-light .sigil-tok-escape {
+  color: #b75501;
+}
+
+.theme-light .sigil-tok-formula {
+  color: #af00db;
+}
+
+.theme-light .sigil-tok-chart-key {
+  color: #0070c1;
+}
+
+.theme-light .sigil-tok-chart-value {
+  color: #098658;
+}
+
+.theme-light .sigil-tok-plaintext {
+  color: #6b7078;
+}
+
+.theme-light .sigil-tok-invalid {
+  color: #cd3131;
 }
 
 .theme-light .sigil-diagnostics {
