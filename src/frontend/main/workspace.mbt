@@ -253,14 +253,8 @@ fn with_document_title(
 }
 
 ///|
-fn normalize_workspace(workspace : WorkspaceMeta, lang : Lang) -> WorkspaceMeta {
-  let workspace = if workspace.documents.is_empty() {
-    default_workspace(lang)
-  } else {
-    workspace
-  }
+fn normalize_workspace(workspace : WorkspaceMeta) -> WorkspaceMeta {
   let documents = workspace.documents
-  let first_doc = documents[0].id
   let open_tabs : Array[String] = []
   for id in workspace.open_tabs {
     let valid = id == profile_tab_id ||
@@ -272,11 +266,13 @@ fn normalize_workspace(workspace : WorkspaceMeta, lang : Lang) -> WorkspaceMeta 
       open_tabs.push(id)
     }
   }
-  if open_tabs.is_empty() {
-    open_tabs.push(first_doc)
+  if open_tabs.is_empty() && !documents.is_empty() {
+    open_tabs.push(documents[0].id)
   }
   let active_tab = if contains_id(open_tabs, workspace.active_tab) {
     workspace.active_tab
+  } else if open_tabs.is_empty() {
+    ""
   } else {
     open_tabs[0]
   }
@@ -326,7 +322,7 @@ fn load_workspace(lang : Lang) -> WorkspaceMeta {
       }
     }
   }
-  normalize_workspace(workspace, lang)
+  normalize_workspace(workspace)
 }
 
 ///|

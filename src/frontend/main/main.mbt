@@ -65,6 +65,7 @@ enum Msg {
   AssetsImported(String)
   InsertAsset(String)
   DeleteAsset(String)
+  DeleteDocument(String)
   ToggleLanguage
   OpenSettings
   SetTheme(AppTheme)
@@ -172,6 +173,19 @@ fn split_at(client_x : Double) -> Double {
   let width = @dom.window().inner_width()
   let pct = if width <= 0.0 { 58.0 } else { client_x / width * 100.0 }
   clamp_split(pct)
+}
+
+///|
+fn confirm_delete_document(model : Model, id : String) -> Bool {
+  match find_document(model.documents, id) {
+    None => false
+    Some(document) =>
+      @dom.window().confirm(
+        tr(model.lang, "Delete \"", "删除邮件“") +
+        document.title +
+        tr(model.lang, "\"? This cannot be undone.", "”？此操作无法撤销。"),
+      )
+  }
 }
 
 ///|
@@ -492,6 +506,45 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
       save_assets(assets)
       ({ ..model, assets, }, @rabbita.none)
     }
+    DeleteDocument(id) =>
+      if confirm_delete_document(model, id) {
+        let documents : Array[EmailDoc] = []
+        for document in model.documents {
+          if document.id != id {
+            documents.push(document)
+          }
+        }
+        let open_tabs = remove_tab(model.open_tabs, id)
+        let active_tab = if model.active_tab == id {
+          if open_tabs.is_empty() {
+            ""
+          } else {
+            open_tabs[open_tabs.length() - 1]
+          }
+        } else {
+          model.active_tab
+        }
+        let style_doc_id = if model.style_doc_id == id {
+          if documents.is_empty() {
+            ""
+          } else {
+            documents[0].id
+          }
+        } else {
+          model.style_doc_id
+        }
+        let next = {
+          ..model,
+          documents,
+          open_tabs,
+          active_tab,
+          style_doc_id,
+        }
+        persist(next)
+        (next, @rabbita.none)
+      } else {
+        (model, @rabbita.none)
+      }
     ToggleLanguage => {
       let lang = other_lang(model.lang)
       save_lang(lang)
@@ -871,15 +924,27 @@ fn sidebar(emit : Emit[Msg], model : Model) -> Html {
   for document in model.documents {
     let active = model.active_tab == document.id
     documents.push(
-      button(
-        type_="button",
+      div(
         class=if active { "sigil-doc-row is-active" } else { "sigil-doc-row" },
-        title=document.title,
-        on_click=emit(OpenDocument(document.id)),
         [
-          span(class="sigil-doc-dot", ([] : Array[Html])),
-          span(class="sigil-doc-name", document.title),
-          span(class="sigil-doc-chars", document.source.length().to_string()),
+          button(
+            type_="button",
+            class="sigil-doc-open",
+            title=document.title,
+            on_click=emit(OpenDocument(document.id)),
+            [
+              span(class="sigil-doc-dot", ([] : Array[Html])),
+              span(class="sigil-doc-name", document.title),
+              span(class="sigil-doc-chars", document.source.length().to_string()),
+            ],
+          ),
+          button(
+            type_="button",
+            class="sigil-doc-delete",
+            title=tr(model.lang, "Delete email", "删除邮件"),
+            on_click=emit(DeleteDocument(document.id)),
+            [span("×")],
+          ),
         ],
       ),
     )
