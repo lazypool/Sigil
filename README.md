@@ -56,6 +56,7 @@
 - **Style presets** — preview and apply letter, footer, divider, and signature styles to the active document.
 - **Appearance controls** — dark/light themes, accent color, density, editor font size, and English/Chinese UI chrome.
 - **HTML export** — save the rendered email-safe HTML through the browser save dialog.
+- **One-click sending** — send the rendered HTML through Resend or SendGrid; a guided setup, prefilled profile details, and a test-email check keep configuration simple. Inline images become CID attachments and the API key stays in the native backend.
 
 | Area | Details |
 | --- | --- |
@@ -153,7 +154,7 @@ sigil/
 
 ## Status
 
-Stage 0 is a complete local authoring workspace. The next milestones are linting, theme packs, native storage, and SMTP sending.
+Stage 0 is a complete local authoring workspace with Resend/SendGrid delivery. The next milestones are linting, theme packs, and native storage.
 
 ## License
 
