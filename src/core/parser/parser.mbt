@@ -136,7 +136,7 @@ fn has_leading_space(line : String) -> Bool {
 fn list_marker(line : String) -> ListMarker? {
   let text = trimmed(line)
   if text.has_prefix("- ") {
-    return Some(Unordered(text.substring(start=2)))
+    return Some(Unordered(text[2:].to_owned()))
   }
   let chars = text.to_array()
   let mut index = 0
@@ -308,13 +308,10 @@ fn parse_inline_inner(
         let tag = chars_text(chars, i + 1, close)
         if tag.has_prefix("link:") {
           flush_text()
-          let rest = tag.substring(start=5)
+          let rest = tag[5:].to_owned()
           let (url, label) = match rest.find("|") {
             Some(position) =>
-              (
-                rest.substring(start=0, end=position),
-                rest.substring(start=position + 1),
-              )
+              (rest[:position].to_owned(), rest[position + 1:].to_owned())
             None => (rest, rest)
           }
           if safe_link(url) {
@@ -340,7 +337,7 @@ fn parse_inline_inner(
           continue
         } else if tag.has_prefix("icon:") {
           flush_text()
-          let name = tag.substring(start=5)
+          let name = tag[5:].to_owned()
           if name == "" {
             push_diagnostic(diagnostics, Error, "Icon name is empty.", line)
             result.push(Text("<" + tag + ">"))
@@ -407,8 +404,8 @@ pub fn parse(source : String) -> ParseResult {
     let (key, value) = match line.find(" ") {
       Some(position) =>
         (
-          line.substring(start=0, end=position),
-          trimmed(line.substring(start=position + 1)),
+          line[:position].to_owned(),
+          trimmed(line[position + 1:].to_owned()),
         )
       None => (line, "")
     }
@@ -521,7 +518,7 @@ pub fn parse(source : String) -> ParseResult {
     }
     if line.has_prefix("<image:") && line.has_suffix(">") {
       flush_paragraph(paragraph, blocks, diagnostics, line_number)
-      let name = line.substring(start=7, end=line.length() - 1)
+      let name = line[7:line.length() - 1].to_owned()
       if name == "" {
         push_diagnostic(diagnostics, Error, "Image path is empty.", line_number)
       } else {
@@ -532,7 +529,7 @@ pub fn parse(source : String) -> ParseResult {
     }
     if line.has_prefix("<sig:") && line.has_suffix(">") {
       flush_paragraph(paragraph, blocks, diagnostics, line_number)
-      let name = line.substring(start=5, end=line.length() - 1)
+      let name = line[5:line.length() - 1].to_owned()
       if name == "" {
         push_diagnostic(
           diagnostics,
@@ -590,7 +587,7 @@ pub fn parse(source : String) -> ParseResult {
     }
     if line.has_prefix(":::chart ") {
       flush_paragraph(paragraph, blocks, diagnostics, line_number)
-      let chart_type = trimmed(line.substring(start=9))
+      let chart_type = trimmed(line[9:].to_owned())
       let content : Array[String] = []
       i = i + 1
       while i < line_count && trimmed(lines[i]) != ":::" {
