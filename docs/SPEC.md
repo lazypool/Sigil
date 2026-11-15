@@ -275,8 +275,10 @@ All insertions use `<>` and **must carry an explicit prefix**. An unprefixed `<>
   email's library can be browsed and edited from the same tab.
 - Library tabs provide an inline preview page for images and tables; they do
   not insert assets.
-- In the sidebar, clicking an image or table opens its preview, while its `+`
-  button inserts it into the active email.
+- In the sidebar, clicking an image or table switches back to the owning
+  email's editor and previews the asset in the right preview pane, while its
+  `+` button inserts it into the active email. Clicking the email tab or
+  sidebar row clears the asset preview and restores the email preview.
 - The workspace uses inline views and inline confirmations instead of modal
   dialogs.
 - The table preview is an inline editor: cells are editable, rows and columns

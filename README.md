@@ -51,7 +51,7 @@
 - **A live preview** — every keystroke reparses the document and rebuilds a sandboxed email preview.
 - **Syntax highlighting** — header directives, dividers, lists, emphasis, insertions, links, and block constructs are color-coded.
 - **A profile tab** — name, contact details, education, links, and avatar feed signatures without putting personal data in the document.
-- **Per-email libraries** — every email owns its own flat Images and Tables lists; library tabs group resources by email, images open inline previews, and tables open a simplified inline editor with content-based column widths and a column limit.
+- **Per-email libraries** — every email owns its own flat Images and Tables lists; library tabs group resources by email and preview them in place, while sidebar clicks return to the editor and preview the asset in the right pane.
 - **A table library** — import CSV, XLSX, XLS, ODS, or JSON files as CSV and insert them with `<table:name.csv>`. Tables are hard-limited to 5 columns and 60 characters per cell; wider or longer data is split or truncated on import.
 - **Style presets** — preview and apply letter, footer, divider, and signature styles to the active document.
 - **Appearance controls** — dark/light themes, accent color, density, editor font size, and English/Chinese UI chrome.

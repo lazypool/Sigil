@@ -35,6 +35,9 @@ struct Model {
   preview_doc_id : String
   preview_item_id : String
   table_draft : String
+  workspace_preview_kind : PreviewKind
+  workspace_preview_doc_id : String
+  workspace_preview_item_id : String
   pending_delete_doc_id : String
   table_notice : String
   open_tabs : Array[String]
@@ -75,6 +78,8 @@ enum Msg {
   InsertAsset(String, String)
   DeleteAsset(String, String)
   OpenImagePreview(String, String)
+  OpenWorkspaceImagePreview(String, String)
+  CloseWorkspacePreview
   ClosePreview
   DeleteDocument(String)
   OpenTables
@@ -84,6 +89,7 @@ enum Msg {
   InsertTable(String, String)
   DeleteTable(String, String)
   OpenTablePreview(String, String)
+  OpenWorkspaceTablePreview(String, String)
   EditTableCell(Int32, Int32, String)
   AddTableRow
   AddTableColumn
@@ -146,6 +152,9 @@ fn initial_model() -> Model {
     preview_doc_id: "",
     preview_item_id: "",
     table_draft: "",
+    workspace_preview_kind: NoPreview,
+    workspace_preview_doc_id: "",
+    workspace_preview_item_id: "",
     pending_delete_doc_id: "",
     table_notice: "",
     open_tabs: workspace.open_tabs,
@@ -185,6 +194,20 @@ fn active_source(model : Model) -> String {
   match active_document(model) {
     Some(document) => document.source
     None => ""
+  }
+}
+
+///|
+fn without_previews(model : Model) -> Model {
+  {
+    ..model,
+    preview_kind: NoPreview,
+    preview_doc_id: "",
+    preview_item_id: "",
+    table_draft: "",
+    workspace_preview_kind: NoPreview,
+    workspace_preview_doc_id: "",
+    workspace_preview_item_id: "",
   }
 }
 
@@ -253,7 +276,11 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
     EndDrag => ({ ..model, dragging: false, }, @rabbita.none)
     SelectTab(id) =>
       if contains_id(model.open_tabs, id) {
-        let base = { ..model, active_tab: id, }
+        let base = if find_document(model.documents, id) is Some(_) {
+          without_previews({ ..model, active_tab: id })
+        } else {
+          { ..model, active_tab: id }
+        }
         let next = if id != model.library_doc_id &&
           find_document(model.documents, id) is Some(_) {
           switch_library(base, id)
@@ -277,6 +304,11 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
           ..model,
           open_tabs: ensure_tab(model.open_tabs, id),
           active_tab: id,
+        }
+        let base = if find_document(model.documents, id) is Some(_) {
+          without_previews(base)
+        } else {
+          base
         }
         let next = if id != model.library_doc_id &&
           find_document(model.documents, id) is Some(_) {
@@ -327,6 +359,7 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
         active_tab: document.id,
       }
       let next = model_with_library(base, document.id, empty_library())
+      let next = without_previews(next)
       persist(next)
       (next, @rabbita.none)
     }
@@ -548,6 +581,17 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
         } else {
           next
         }
+        let next = if model.workspace_preview_kind is ImagePreview &&
+          model.workspace_preview_item_id == id {
+          {
+            ..next,
+            workspace_preview_kind: NoPreview,
+            workspace_preview_doc_id: "",
+            workspace_preview_item_id: "",
+          }
+        } else {
+          next
+        }
         (next, @rabbita.none)
       }
     }
@@ -569,6 +613,32 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
       } else {
         (model, @rabbita.none)
       }
+    OpenWorkspaceImagePreview(doc_id, id) =>
+      if find_document(model.documents, doc_id) is Some(_) &&
+        find_asset(library_for_document(model, doc_id).images, id) is Some(_) {
+        let next = {
+          ..model,
+          open_tabs: ensure_tab(model.open_tabs, doc_id),
+          active_tab: doc_id,
+          workspace_preview_kind: ImagePreview,
+          workspace_preview_doc_id: doc_id,
+          workspace_preview_item_id: id,
+        }
+        persist(next)
+        (next, @rabbita.none)
+      } else {
+        (model, @rabbita.none)
+      }
+    CloseWorkspacePreview =>
+      (
+        {
+          ..model,
+          workspace_preview_kind: NoPreview,
+          workspace_preview_doc_id: "",
+          workspace_preview_item_id: "",
+        },
+        @rabbita.none,
+      )
     ClosePreview =>
       (
         {
@@ -738,6 +808,17 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
         } else {
           next
         }
+        let next = if model.workspace_preview_kind is TablePreview &&
+          model.workspace_preview_item_id == id {
+          {
+            ..next,
+            workspace_preview_kind: NoPreview,
+            workspace_preview_doc_id: "",
+            workspace_preview_item_id: "",
+          }
+        } else {
+          next
+        }
         (next, @rabbita.none)
       }
     }
@@ -764,6 +845,22 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
           }
           None => (model, @rabbita.none)
         }
+      } else {
+        (model, @rabbita.none)
+      }
+    OpenWorkspaceTablePreview(doc_id, id) =>
+      if find_document(model.documents, doc_id) is Some(_) &&
+        find_table(library_for_document(model, doc_id).tables, id) is Some(_) {
+        let next = {
+          ..model,
+          open_tabs: ensure_tab(model.open_tabs, doc_id),
+          active_tab: doc_id,
+          workspace_preview_kind: TablePreview,
+          workspace_preview_doc_id: doc_id,
+          workspace_preview_item_id: id,
+        }
+        persist(next)
+        (next, @rabbita.none)
       } else {
         (model, @rabbita.none)
       }
@@ -888,6 +985,16 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
           }
         } else if model.pending_delete_doc_id == id {
           { ..next, pending_delete_doc_id: "", }
+        } else {
+          next
+        }
+        let next = if model.workspace_preview_doc_id == id {
+          {
+            ..next,
+            workspace_preview_kind: NoPreview,
+            workspace_preview_doc_id: "",
+            workspace_preview_item_id: "",
+          }
         } else {
           next
         }
@@ -1257,7 +1364,7 @@ fn sidebar_table_rows(emit : Emit[Msg], model : Model) -> Array[Html] {
           type_="button",
           class="sigil-side-table-open",
           title=tr(model.lang, "Preview ", "预览 ") + table.name,
-          on_click=emit(OpenTablePreview(model.library_doc_id, table.id)),
+          on_click=emit(OpenWorkspaceTablePreview(model.library_doc_id, table.id)),
           [
             icon_table(),
             span(class="sigil-side-table-name", table.name),
@@ -1342,7 +1449,7 @@ fn sidebar(emit : Emit[Msg], model : Model) -> Html {
           type_="button",
           class="sigil-side-thumb",
           title=tr(model.lang, "Preview ", "预览 ") + asset.name,
-          on_click=emit(OpenImagePreview(model.library_doc_id, asset.id)),
+          on_click=emit(OpenWorkspaceImagePreview(model.library_doc_id, asset.id)),
           [
             img(
               src=asset.data_url,
@@ -1539,6 +1646,95 @@ fn preview_pane(model : Model, preview_html : String) -> Html {
 }
 
 ///|
+fn document_accent(document : EmailDoc) -> String {
+  let parsed = @parser.parse(document.source)
+  match parsed.document.theme {
+    Some(color) => color
+    None => "#2563EB"
+  }
+}
+
+///|
+fn workspace_preview_pane(
+  emit : Emit[Msg],
+  model : Model,
+  document : EmailDoc,
+) -> Html {
+  let library = library_for_document(model, document.id)
+  let (title, body) = match model.workspace_preview_kind {
+    NoPreview => ("", @html.nothing)
+    ImagePreview =>
+      match find_asset(library.images, model.workspace_preview_item_id) {
+        Some(asset) =>
+          (
+            asset.name,
+            div(class="sigil-workspace-preview-stage", [
+              img(
+                src=asset.data_url,
+                alt=asset.name,
+                class="sigil-workspace-preview-image",
+              ),
+            ]),
+          )
+        None =>
+          (
+            tr(model.lang, "Image", "图片"),
+            div(
+              class="sigil-workspace-preview-empty",
+              tr(model.lang, "Image not found.", "找不到图片。"),
+            ),
+          )
+      }
+    TablePreview =>
+      match find_table(library.tables, model.workspace_preview_item_id) {
+        Some(table) => {
+          let accent = document_accent(document)
+          let table_html = @render.render_csv_table_html(table.csv, accent)
+          let preview_html = "<!doctype html><html><head><meta charset=\"utf-8\">" +
+            "<style>body{margin:0;padding:24px;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;}</style>" +
+            "</head><body>" +
+            table_html +
+            "</body></html>"
+          (
+            table.name,
+            div(class="sigil-workspace-preview-stage is-table", [
+              iframe(
+                class="sigil-workspace-preview-frame",
+                title=table.name,
+                sandbox="allow-same-origin",
+                attrs=@html.Attrs::build().srcdoc(preview_html),
+              ),
+            ]),
+          )
+        }
+        None =>
+          (
+            tr(model.lang, "Table", "表格"),
+            div(
+              class="sigil-workspace-preview-empty",
+              tr(model.lang, "Table not found.", "找不到表格。"),
+            ),
+          )
+      }
+  }
+  div(class="sigil-preview", [
+    div(class="sigil-pane-bar", [
+      span(class="sigil-pane-title", tr(model.lang, "Preview", "预览")),
+      div(class="sigil-pane-actions", [
+        span(class="sigil-pane-meta", title),
+        button(
+          type_="button",
+          class="sigil-button is-small",
+          on_click=emit(CloseWorkspacePreview),
+          tr(model.lang, "Back to email", "返回邮件"),
+        ),
+      ]),
+    ]),
+    body,
+  ])
+}
+
+///|
 fn compose_workspace(
   emit : Emit[Msg],
   model : Model,
@@ -1551,6 +1747,12 @@ fn compose_workspace(
     asset_map(model.assets),
     table_map(model.tables),
   )
+  let right_pane = if model.workspace_preview_kind != NoPreview &&
+    model.workspace_preview_doc_id == document.id {
+    workspace_preview_pane(emit, model, document)
+  } else {
+    preview_pane(model, preview_html)
+  }
   div(class="sigil-workspace", [
     editor_pane(emit, model, document, result.diagnostics),
     div(
@@ -1559,7 +1761,7 @@ fn compose_workspace(
       on_mousedown=emit.map(_ => BeginDrag),
       [div(class="sigil-splitter-grip", ([] : Array[Html]))],
     ),
-    preview_pane(model, preview_html),
+    right_pane,
   ])
 }
 
