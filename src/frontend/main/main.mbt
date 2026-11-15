@@ -53,6 +53,10 @@ struct Model {
   profile_draft : Profile
   lang : Lang
   prefs : Prefs
+  ai : AiConfig
+  ai_target_doc_id : String
+  ai_error : String
+  ai_status : AiStatus
   style_view : StyleKind
   style_doc_id : String
 }
@@ -117,6 +121,11 @@ enum Msg {
   SetEditorFontSize(Int32)
   ResetPrefs
   SetLang(Lang)
+  SetAiEndpoint(String)
+  SetAiModel(String)
+  SetAiApiKey(String)
+  PolishAiEmail
+  AiEmailPolished(String)
   ImportAvatar
   AvatarImported(String)
   RemoveAvatar
@@ -184,6 +193,10 @@ fn initial_model() -> Model {
     profile_draft: profile,
     lang,
     prefs: load_prefs(),
+    ai: load_ai_config(),
+    ai_target_doc_id: "",
+    ai_error: "",
+    ai_status: AiIdle,
     style_view: LetterStyle,
     style_doc_id,
   }
@@ -274,6 +287,12 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
           model.active_tab,
           source,
         ),
+        ai_status: if model.ai_status is AiLoading {
+          AiLoading
+        } else {
+          AiIdle
+        },
+        ai_error: if model.ai_status is AiLoading { model.ai_error } else { "" },
       }
       persist(next)
       (next, @rabbita.none)
@@ -458,6 +477,135 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
     SetLang(lang) => {
       save_lang(lang)
       ({ ..model, lang, }, @rabbita.none)
+    }
+    SetAiEndpoint(endpoint) => {
+      let ai = { ..model.ai, endpoint, }
+      save_ai_config(ai)
+      ({ ..model, ai, }, @rabbita.none)
+    }
+    SetAiModel(model_name) => {
+      let ai = { ..model.ai, model: model_name, }
+      save_ai_config(ai)
+      ({ ..model, ai, }, @rabbita.none)
+    }
+    SetAiApiKey(api_key) => {
+      let ai = { ..model.ai, api_key, }
+      save_ai_config(ai)
+      ({ ..model, ai, }, @rabbita.none)
+    }
+    PolishAiEmail => {
+      match active_document(model) {
+        None =>
+          (
+            {
+              ..model,
+              ai_status: AiError,
+              ai_error: tr(
+                model.lang,
+                "Open an email before polishing.",
+                "请先打开一封邮件，再进行润色。",
+              ),
+            },
+            @rabbita.none,
+          )
+        Some(document) =>
+          if model.ai_status is AiLoading {
+            (model, @rabbita.none)
+          } else if model.ai.endpoint.trim() == "" ||
+            model.ai.model.trim() == "" {
+            (
+              {
+                ..model,
+                ai_status: AiError,
+                ai_error: tr(
+                  model.lang,
+                  "Set the AI endpoint and model in Settings.",
+                  "请先在设置中填写 AI 接口和模型。",
+                ),
+              },
+              @rabbita.none,
+            )
+          } else {
+            let request = ai_build_request(model, document)
+            storage_set(
+              "sigil.ai.pending",
+              @json.ToJson::to_json(request).stringify(),
+            )
+            (
+              {
+                ..model,
+                ai_target_doc_id: document.id,
+                ai_status: AiLoading,
+                ai_error: "",
+              },
+              @rabbita.perform(
+                json => emit(AiEmailPolished(json)),
+                ai_compose_task,
+              ),
+            )
+          }
+      }
+    }
+    AiEmailPolished(json) => {
+      let reply = parse_ai_reply(json)
+      if !reply.ok {
+        (
+          {
+            ..model,
+            ai_status: AiError,
+            ai_error: reply.error,
+          },
+          @rabbita.none,
+        )
+      } else {
+        let markup = strip_ai_instruction_lines(
+          extract_ai_markup(reply.content),
+        )
+        if markup == "" || ai_is_markdown_output(markup) {
+          (
+            {
+              ..model,
+              ai_status: AiError,
+              ai_error: tr(
+                model.lang,
+                "The model returned Markdown instead of Sigil markup. Please try again.",
+                "模型返回了 Markdown 而不是 Sigil 标记，请重试。",
+              ),
+            },
+            @rabbita.none,
+          )
+        } else {
+          match find_document(model.documents, model.ai_target_doc_id) {
+            None =>
+              (
+                {
+                  ..model,
+                  ai_status: AiError,
+                  ai_error: tr(
+                    model.lang,
+                    "The email being polished was closed.",
+                    "正在润色的邮件已被关闭。",
+                  ),
+                },
+                @rabbita.none,
+              )
+            Some(document) => {
+              let next = {
+                ..model,
+                documents: with_document_source(
+                  model.documents,
+                  document.id,
+                  markup,
+                ),
+                ai_status: AiDone,
+                ai_error: "",
+              }
+              persist(next)
+              (next, @rabbita.none)
+            }
+          }
+        }
+      }
     }
     ImportAvatar =>
       (
@@ -1875,6 +2023,33 @@ fn diagnostics_panel(
 }
 
 ///|
+fn ai_status_strip(model : Model) -> Html {
+  if model.ai_status is AiLoading {
+    div(
+      class="sigil-ai-strip",
+      [span(class="sigil-ai-status", tr(model.lang, "Polishing...", "润色中..."))],
+    )
+  } else if model.ai_error != "" {
+    div(class="sigil-ai-strip", [
+      span(class="sigil-ai-error", model.ai_error),
+    ])
+  } else if model.ai_status is AiDone {
+    div(class="sigil-ai-strip", [
+      span(
+        class="sigil-ai-status",
+        tr(
+          model.lang,
+          "Polished. Editor content replaced.",
+          "润色完成，已覆盖编辑器内容。",
+        ),
+      ),
+    ])
+  } else {
+    @html.nothing
+  }
+}
+
+///|
 fn editor_pane(
   emit : Emit[Msg],
   model : Model,
@@ -1891,12 +2066,31 @@ fn editor_pane(
           value=document.title,
           on_input=emit.map(title => RenameDocument(title)),
         ),
-        span(
-          class="sigil-pane-meta",
-          document.source.length().to_string() +
-          tr(model.lang, " chars", " 字符"),
-        ),
+        div(class="sigil-pane-actions", [
+          span(
+            class="sigil-pane-meta",
+            document.source.length().to_string() +
+            tr(model.lang, " chars", " 字符"),
+          ),
+          button(
+            type_="button",
+            class="sigil-button is-small is-primary",
+            disabled=model.ai_status is AiLoading,
+            title=tr(
+              model.lang,
+              "Polish the current email with an AI model",
+              "让模型润色当前邮件",
+            ),
+            on_click=emit(PolishAiEmail),
+            if model.ai_status is AiLoading {
+              tr(model.lang, "Polishing...", "润色中...")
+            } else {
+              tr(model.lang, "AI polish", "AI 润色")
+            },
+          ),
+        ]),
       ]),
+      ai_status_strip(model),
       div(class="sigil-editor-field", [
         highlighted_source(document.source),
         textarea(
@@ -3027,6 +3221,65 @@ fn settings_tab(emit : Emit[Msg], model : Model) -> Html {
           ]),
           div(class="sigil-choice-row", language_choices),
         ]),
+      ]),
+      div(class="sigil-settings-section", [
+        span(
+          class="sigil-settings-title",
+          tr(model.lang, "AI model", "大模型"),
+        ),
+        div(class="sigil-field-grid", [
+          label(class="sigil-field is-wide", [
+            span(
+              class="sigil-field-label",
+              tr(model.lang, "API endpoint", "API 接口"),
+            ),
+            input(
+              input_type=@html.InputType::Text,
+              class="sigil-field-input",
+              value=model.ai.endpoint,
+              placeholder="https://api.openai.com/v1/chat/completions",
+              on_input=emit.map(endpoint => SetAiEndpoint(endpoint)),
+            ),
+          ]),
+          label(class="sigil-field", [
+            span(
+              class="sigil-field-label",
+              tr(model.lang, "Model", "模型"),
+            ),
+            input(
+              input_type=@html.InputType::Text,
+              class="sigil-field-input",
+              value=model.ai.model,
+              placeholder="gpt-4o-mini",
+              on_input=emit.map(name => SetAiModel(name)),
+            ),
+          ]),
+          label(class="sigil-field", [
+            span(
+              class="sigil-field-label",
+              tr(model.lang, "API key", "API 密钥"),
+            ),
+            input(
+              input_type=@html.InputType::Password,
+              class="sigil-field-input",
+              value=model.ai.api_key,
+              placeholder=tr(
+                model.lang,
+                "Optional for local models",
+                "本地模型可留空",
+              ),
+              on_input=emit.map(key => SetAiApiKey(key)),
+            ),
+          ]),
+        ]),
+        div(
+          class="sigil-settings-description",
+          tr(
+            model.lang,
+            "OpenAI-compatible chat completions endpoint. The key is saved only in this browser's local storage.",
+            "兼容 OpenAI 的对话补全接口。密钥仅保存在当前浏览器的本地存储中。",
+          ),
+        ),
       ]),
       div(class="sigil-profile-footer", [
         span(

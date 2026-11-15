@@ -3455,3 +3455,158 @@ textarea {
 .sigil-tab-dot.is-chart {
   background: #f59e0b;
 }
+
+/* AI writing panel */
+.sigil-ai-strip {
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  border-bottom: 1px solid #2b2f38;
+  background: #191b20;
+}
+
+.sigil-ai-strip .sigil-ai-error {
+  margin: 0;
+}
+
+.sigil-ai-panel {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 48%;
+  overflow: auto;
+  padding: 14px 16px;
+  border-bottom: 1px solid #2b2f38;
+  background: #191b20;
+}
+
+.sigil-ai-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sigil-ai-panel-title {
+  color: #eef1f5;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.sigil-ai-panel-copy {
+  color: var(--sigil-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.sigil-ai-prompt {
+  width: 100%;
+  min-height: 78px;
+  max-height: 150px;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--sigil-border);
+  border-radius: 8px;
+  background: var(--sigil-surface);
+  color: #d6dae2;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.sigil-ai-prompt:focus {
+  outline: none;
+  border-color: var(--sigil-accent);
+}
+
+.sigil-ai-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.sigil-ai-status {
+  color: #8ab4ff;
+  font-size: 12.5px;
+}
+
+.sigil-ai-error {
+  padding: 8px 10px;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.sigil-ai-result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sigil-ai-result-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sigil-ai-result-summary {
+  color: var(--sigil-muted);
+  font-size: 12px;
+}
+
+.sigil-ai-result-text {
+  max-height: 190px;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--sigil-border);
+  border-radius: 8px;
+  background: var(--sigil-surface);
+  color: #cfd5de;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.sigil-settings-section > .sigil-settings-description {
+  margin-top: 12px;
+}
+
+.theme-light .sigil-ai-strip {
+  border-bottom-color: #e2e4e8;
+  background: #f6f7f9;
+}
+
+.theme-light .sigil-ai-panel {
+  border-bottom-color: #e2e4e8;
+  background: #f6f7f9;
+}
+
+.theme-light .sigil-ai-panel-title {
+  color: #1f2328;
+}
+
+.theme-light .sigil-ai-prompt {
+  background: #ffffff;
+  color: #24292f;
+}
+
+.theme-light .sigil-ai-status {
+  color: #2563eb;
+}
+
+.theme-light .sigil-ai-error {
+  border-color: rgba(220, 38, 38, 0.35);
+  background: #fff1f1;
+  color: #b42318;
+}
+
+.theme-light .sigil-ai-result-text {
+  background: #ffffff;
+  color: #424a53;
+}
