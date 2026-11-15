@@ -5,6 +5,7 @@ test "template headers, divider, and signature parse" {
     #|@footer legal
     #|@split wave
     #|@letter card
+    #|@palette ocean
     #|
     #|---
     #|
@@ -14,10 +15,24 @@ test "template headers, divider, and signature parse" {
   assert_eq(result.document.footer, Some("legal"))
   assert_eq(result.document.split, Some("wave"))
   assert_eq(result.document.letter, Some("card"))
+  assert_eq(result.document.palette, Some("ocean"))
   assert_eq(result.document.blocks.length(), 2)
   assert_true(result.document.blocks[0] is Divider)
   assert_true(result.document.blocks[1] is Signature("classic"))
   assert_eq(result.diagnostics.length(), 0)
+}
+
+
+///|
+test "chart library references parse and invalid palettes are rejected" {
+  let result = @parser.parse("@palette sunset\n\n<chart:sales>\n")
+  assert_eq(result.document.palette, Some("sunset"))
+  assert_eq(result.document.blocks.length(), 1)
+  assert_true(result.document.blocks[0] is ChartRef("sales"))
+  let invalid = @parser.parse("@palette neon\n\nHello\n")
+  assert_eq(invalid.document.palette, None)
+  assert_eq(invalid.diagnostics.length(), 1)
+  assert_true(invalid.diagnostics[0].severity is Error)
 }
 
 ///|

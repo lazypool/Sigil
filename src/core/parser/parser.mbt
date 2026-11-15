@@ -348,12 +348,13 @@ fn parse_inline_inner(
           continue
         } else if tag.has_prefix("image:") ||
           tag.has_prefix("sig:") ||
-          tag.has_prefix("table:") {
+          tag.has_prefix("table:") ||
+          tag.has_prefix("chart:") {
           if allow_block_tags {
             push_diagnostic(
               diagnostics,
               Error,
-              "Image, signature, and table insertions must occupy their own line.",
+              "Image, signature, table, and chart insertions must occupy their own line.",
               line,
             )
           }
@@ -366,7 +367,7 @@ fn parse_inline_inner(
             diagnostics,
             Error,
             if tag.contains(":") {
-              "Unknown insertion prefix. Use sig:, image:, table:, icon:, or link:."
+              "Unknown insertion prefix. Use sig:, image:, table:, chart:, icon:, or link:."
             } else {
               "Insertions must carry an explicit prefix."
             },
@@ -394,6 +395,7 @@ pub fn parse(source : String) -> ParseResult {
   let mut footer : String? = None
   let mut split : String? = None
   let mut letter : String? = None
+  let mut palette : String? = None
   let mut index = 0
   let line_count = lines.length()
 
@@ -471,13 +473,33 @@ pub fn parse(source : String) -> ParseResult {
           } else {
             letter = Some(value)
           }
+        "@palette" =>
+          if palette is Some(_) {
+            push_diagnostic(
+              diagnostics,
+              Error,
+              "Duplicate @palette directive.",
+              line_number,
+            )
+          } else if !@types.chart_palette_valid(value) {
+            push_diagnostic(
+              diagnostics,
+              Error,
+              "@palette must be one of: " +
+              @types.chart_palette_names.join(", ") +
+              ".",
+              line_number,
+            )
+          } else {
+            palette = Some(value)
+          }
         _ =>
           push_diagnostic(
             diagnostics,
             Error,
             "Unknown header directive " +
             key +
-            ". Allowed directives are @theme, @footer, @split, and @letter.",
+            ". Allowed directives are @theme, @footer, @split, @letter, and @palette.",
             line_number,
           )
       }
@@ -536,6 +558,17 @@ pub fn parse(source : String) -> ParseResult {
         push_diagnostic(diagnostics, Error, "Table file name is empty.", line_number)
       } else {
         blocks.push(Table(name))
+      }
+      i = i + 1
+      continue
+    }
+    if line.has_prefix("<chart:") && line.has_suffix(">") {
+      flush_paragraph(paragraph, blocks, diagnostics, line_number)
+      let name = line[7:line.length() - 1].to_owned()
+      if name == "" {
+        push_diagnostic(diagnostics, Error, "Chart name is empty.", line_number)
+      } else {
+        blocks.push(ChartRef(name))
       }
       i = i + 1
       continue
@@ -714,5 +747,5 @@ pub fn parse(source : String) -> ParseResult {
     i = i + 1
   }
   flush_paragraph(paragraph, blocks, diagnostics, line_count)
-  { document: { theme, footer, split, letter, blocks, }, diagnostics, }
+  { document: { theme, footer, split, letter, palette, blocks, }, diagnostics, }
 }

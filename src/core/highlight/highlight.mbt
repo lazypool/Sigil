@@ -118,7 +118,11 @@ fn list_marker_end(chars : Array[Char], start : Int32, end : Int32) -> Int32? {
 
 ///|
 fn known_header_key(key : String) -> Bool {
-  key == "@theme" || key == "@footer" || key == "@split" || key == "@letter"
+  key == "@theme" ||
+  key == "@footer" ||
+  key == "@split" ||
+  key == "@letter" ||
+  key == "@palette"
 }
 
 ///|
@@ -276,6 +280,8 @@ fn highlight_inline(
         } else if tag.has_prefix("image:") {
           prefix_length = 6
         } else if tag.has_prefix("table:") {
+          prefix_length = 6
+        } else if tag.has_prefix("chart:") {
           prefix_length = 6
         } else if tag.has_prefix("sig:") {
           prefix_length = 4

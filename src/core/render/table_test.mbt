@@ -13,6 +13,7 @@ test "table block renders an email-safe html table" {
     footer: None,
     split: None,
     letter: None,
+    palette: None,
     blocks: [@types.Block::Table("stats.csv")],
   }
   let tables : Map[String, String] = Map([
@@ -39,6 +40,7 @@ test "missing table asset renders a readable placeholder" {
     footer: None,
     split: None,
     letter: None,
+    palette: None,
     blocks: [@types.Block::Table("missing.csv")],
   }
   let html = @render.render_document(document, @types.Profile::empty(), Map([]))

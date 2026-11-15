@@ -21,6 +21,7 @@ enum PreviewKind {
   NoPreview
   ImagePreview
   TablePreview
+  ChartPreview
 }
 
 ///|
@@ -29,12 +30,15 @@ struct Model {
   documents : Array[EmailDoc]
   assets : Array[ImageAsset]
   tables : Array[TableAsset]
+  charts : Array[ChartAsset]
   library_doc_id : String
   import_doc_id : String
   preview_kind : PreviewKind
   preview_doc_id : String
   preview_item_id : String
   table_draft : String
+  chart_kind_draft : String
+  chart_text_draft : String
   workspace_preview_kind : PreviewKind
   workspace_preview_doc_id : String
   workspace_preview_item_id : String
@@ -94,6 +98,17 @@ enum Msg {
   AddTableRow
   AddTableColumn
   DismissTableNotice
+  OpenCharts
+  ImportCharts
+  PrepareChartImport(String)
+  ChartsImported(String)
+  InsertChart(String, String)
+  DeleteChart(String, String)
+  OpenChartPreview(String, String)
+  OpenWorkspaceChartPreview(String, String)
+  NewChart(String)
+  EditChartKind(String)
+  EditChartText(String)
   ToggleLanguage
   OpenSettings
   SetTheme(AppTheme)
@@ -146,12 +161,15 @@ fn initial_model() -> Model {
     documents: workspace.documents,
     assets: library.images,
     tables: library.tables,
+    charts: library.charts,
     library_doc_id,
     import_doc_id: "",
     preview_kind: NoPreview,
     preview_doc_id: "",
     preview_item_id: "",
     table_draft: "",
+    chart_kind_draft: "",
+    chart_text_draft: "",
     workspace_preview_kind: NoPreview,
     workspace_preview_doc_id: "",
     workspace_preview_item_id: "",
@@ -205,6 +223,8 @@ fn without_previews(model : Model) -> Model {
     preview_doc_id: "",
     preview_item_id: "",
     table_draft: "",
+    chart_kind_draft: "",
+    chart_text_draft: "",
     workspace_preview_kind: NoPreview,
     workspace_preview_doc_id: "",
     workspace_preview_item_id: "",
@@ -296,6 +316,7 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
       let valid = id == profile_tab_id ||
         id == images_tab_id ||
         id == tables_tab_id ||
+        id == charts_tab_id ||
         id == settings_tab_id ||
         id == styles_tab_id ||
         find_document(model.documents, id) is Some(_)
@@ -647,6 +668,8 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
           preview_doc_id: "",
           preview_item_id: "",
           table_draft: "",
+          chart_kind_draft: "",
+          chart_text_draft: "",
         },
         @rabbita.none,
       )
@@ -914,6 +937,204 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
         (model, @rabbita.none)
       }
     DismissTableNotice => ({ ..model, table_notice: "", }, @rabbita.none)
+    OpenCharts => {
+      let next = {
+        ..model,
+        open_tabs: ensure_tab(model.open_tabs, charts_tab_id),
+        active_tab: charts_tab_id,
+      }
+      persist(next)
+      (next, @rabbita.none)
+    }
+    ImportCharts =>
+      (
+        model,
+        @rabbita.perform(json => emit(ChartsImported(json)), import_charts_task),
+      )
+    PrepareChartImport(doc_id) =>
+      if find_document(model.documents, doc_id) is Some(_) {
+        ({ ..model, import_doc_id: doc_id, }, @rabbita.none)
+      } else {
+        (model, @rabbita.none)
+      }
+    ChartsImported(json) => {
+      let imported = parse_charts(json)
+      let target = import_target_id(model)
+      if imported.is_empty() || target == "" {
+        ({ ..model, import_doc_id: "", }, @rabbita.none)
+      } else {
+        let library = library_for_document(model, target)
+        let charts = merge_charts(library.charts, imported)
+        let next = commit_library(model, target, { ..library, charts })
+        let next = {
+          ..next,
+          import_doc_id: "",
+          open_tabs: ensure_tab(model.open_tabs, charts_tab_id),
+          active_tab: charts_tab_id,
+        }
+        persist(next)
+        (next, @rabbita.none)
+      }
+    }
+    InsertChart(doc_id, id) =>
+      match find_document(model.documents, doc_id) {
+        None => (model, @rabbita.none)
+        Some(document) => {
+          let library = library_for_document(model, doc_id)
+          match find_chart(library.charts, id) {
+            None => (model, @rabbita.none)
+            Some(chart) => {
+              let markup = chart_markup(chart.name)
+              let inserted = insert_at_cursor(markup)
+              let source = if inserted == "" {
+                document.source + markup
+              } else {
+                inserted
+              }
+              let base = {
+                ..model,
+                documents: with_document_source(
+                  model.documents,
+                  doc_id,
+                  source,
+                ),
+                open_tabs: ensure_tab(model.open_tabs, doc_id),
+                active_tab: doc_id,
+              }
+              let next = if model.library_doc_id != doc_id {
+                switch_library(base, doc_id)
+              } else {
+                base
+              }
+              persist(next)
+              (next, @rabbita.none)
+            }
+          }
+        }
+      }
+    DeleteChart(doc_id, id) => {
+      if find_document(model.documents, doc_id) is None {
+        (model, @rabbita.none)
+      } else {
+        let library = library_for_document(model, doc_id)
+        let charts = remove_chart(library.charts, id)
+        let next = commit_library(model, doc_id, { ..library, charts })
+        let next = if model.preview_kind is ChartPreview &&
+          model.preview_item_id == id {
+          {
+            ..next,
+            preview_kind: NoPreview,
+            preview_doc_id: "",
+            preview_item_id: "",
+            chart_kind_draft: "",
+            chart_text_draft: "",
+          }
+        } else {
+          next
+        }
+        let next = if model.workspace_preview_kind is ChartPreview &&
+          model.workspace_preview_item_id == id {
+          {
+            ..next,
+            workspace_preview_kind: NoPreview,
+            workspace_preview_doc_id: "",
+            workspace_preview_item_id: "",
+          }
+        } else {
+          next
+        }
+        (next, @rabbita.none)
+      }
+    }
+    OpenChartPreview(doc_id, id) =>
+      if find_document(model.documents, doc_id) is Some(_) {
+        match find_chart(library_for_document(model, doc_id).charts, id) {
+          Some(chart) =>
+            (
+              {
+                ..model,
+                open_tabs: ensure_tab(model.open_tabs, charts_tab_id),
+                active_tab: charts_tab_id,
+                preview_kind: ChartPreview,
+                preview_doc_id: doc_id,
+                preview_item_id: id,
+                chart_kind_draft: chart.kind,
+                chart_text_draft: if chart.text.trim() == "" {
+                  chart_template(chart.kind, model.lang)
+                } else {
+                  chart.text
+                },
+              },
+              @rabbita.none,
+            )
+          None => (model, @rabbita.none)
+        }
+      } else {
+        (model, @rabbita.none)
+      }
+    OpenWorkspaceChartPreview(doc_id, id) =>
+      if find_document(model.documents, doc_id) is Some(_) &&
+        find_chart(library_for_document(model, doc_id).charts, id) is Some(_) {
+        let next = {
+          ..model,
+          open_tabs: ensure_tab(model.open_tabs, doc_id),
+          active_tab: doc_id,
+          workspace_preview_kind: ChartPreview,
+          workspace_preview_doc_id: doc_id,
+          workspace_preview_item_id: id,
+        }
+        persist(next)
+        (next, @rabbita.none)
+      } else {
+        (model, @rabbita.none)
+      }
+    NewChart(doc_id) => {
+      if find_document(model.documents, doc_id) is None {
+        (model, @rabbita.none)
+      } else {
+        let library = library_for_document(model, doc_id)
+        let chart = new_chart(library.charts, model.lang)
+        let charts = library.charts.copy()
+        charts.push(chart)
+        let next = commit_library(model, doc_id, { ..library, charts })
+        let next = if model.library_doc_id != doc_id {
+          switch_library(next, doc_id)
+        } else {
+          next
+        }
+        let next = {
+          ..next,
+          open_tabs: ensure_tab(next.open_tabs, charts_tab_id),
+          active_tab: charts_tab_id,
+          preview_kind: ChartPreview,
+          preview_doc_id: doc_id,
+          preview_item_id: chart.id,
+          chart_kind_draft: chart.kind,
+          chart_text_draft: chart.text,
+        }
+        persist(next)
+        (next, @rabbita.none)
+      }
+    }
+    EditChartKind(kind) =>
+      if model.preview_kind is ChartPreview {
+        let text = if model.chart_text_draft.trim() == "" {
+          chart_template(kind, model.lang)
+        } else {
+          model.chart_text_draft
+        }
+        let next = { ..model, chart_kind_draft: kind, chart_text_draft: text }
+        (commit_chart_draft(next), @rabbita.none)
+      } else {
+        (model, @rabbita.none)
+      }
+    EditChartText(text) =>
+      if model.preview_kind is ChartPreview {
+        let next = { ..model, chart_text_draft: text }
+        (commit_chart_draft(next), @rabbita.none)
+      } else {
+        (model, @rabbita.none)
+      }
     RequestDeleteDocument(id) =>
       if find_document(model.documents, id) is Some(_) {
         ({ ..model, pending_delete_doc_id: id, }, @rabbita.none)
@@ -1087,6 +1308,16 @@ fn icon_table() -> Html {
 }
 
 ///|
+fn icon_chart() -> Html {
+  icon_svg([
+    @svg.path(d="M4 19h16"),
+    @svg.rect(x=5, y=11, width=3, height=6, rx=1),
+    @svg.rect(x=10, y=7, width=4, height=10, rx=1),
+    @svg.rect(x=16, y=9, width=3, height=8, rx=1),
+  ])
+}
+
+///|
 fn icon_styles() -> Html {
   icon_svg([
     @svg.circle(cx=12, cy=12, r=8),
@@ -1249,6 +1480,17 @@ fn activity_bar(emit : Emit[Msg], model : Model) -> Html {
       ),
       button(
         type_="button",
+        class=if model.active_tab == charts_tab_id {
+          "sigil-activity-button is-active"
+        } else {
+          "sigil-activity-button"
+        },
+        title=tr(model.lang, "Charts", "图表"),
+        on_click=emit(OpenCharts),
+        [icon_chart()],
+      ),
+      button(
+        type_="button",
         class=if styles_active {
           "sigil-activity-button is-active"
         } else {
@@ -1281,6 +1523,8 @@ fn tab_title(model : Model, id : String) -> String {
     tr(model.lang, "Images", "图片")
   } else if id == tables_tab_id {
     tr(model.lang, "Tables", "表格")
+  } else if id == charts_tab_id {
+    tr(model.lang, "Charts", "图表")
   } else if id == settings_tab_id {
     tr(model.lang, "Settings", "设置")
   } else if id == styles_tab_id {
@@ -1301,6 +1545,8 @@ fn tab_dot_class(id : String) -> String {
     "sigil-tab-dot is-image"
   } else if id == tables_tab_id {
     "sigil-tab-dot is-table"
+  } else if id == charts_tab_id {
+    "sigil-tab-dot is-chart"
   } else if id == settings_tab_id {
     "sigil-tab-dot is-settings"
   } else if id == styles_tab_id {
@@ -1379,6 +1625,39 @@ fn sidebar_table_rows(emit : Emit[Msg], model : Model) -> Array[Html] {
           class="sigil-side-table-insert",
           title=tr(model.lang, "Insert table", "插入表格"),
           on_click=emit(InsertTable(model.library_doc_id, table.id)),
+          [span("+")],
+        ),
+      ]),
+    )
+  }
+  rows
+}
+
+///|
+fn sidebar_chart_rows(emit : Emit[Msg], model : Model) -> Array[Html] {
+  let rows : Array[Html] = []
+  for chart in model.charts {
+    rows.push(
+      div(class="sigil-side-table-row", [
+        button(
+          type_="button",
+          class="sigil-side-table-open",
+          title=tr(model.lang, "Preview ", "预览 ") + chart.name,
+          on_click=emit(OpenWorkspaceChartPreview(model.library_doc_id, chart.id)),
+          [
+            icon_chart(),
+            span(class="sigil-side-table-name", chart.name),
+            span(
+              class="sigil-side-table-meta",
+              chart_kind_label(model.lang, chart.kind),
+            ),
+          ],
+        ),
+        button(
+          type_="button",
+          class="sigil-side-table-insert",
+          title=tr(model.lang, "Insert chart", "插入图表"),
+          on_click=emit(InsertChart(model.library_doc_id, chart.id)),
           [span("+")],
         ),
       ]),
@@ -1533,6 +1812,25 @@ fn sidebar(emit : Emit[Msg], model : Model) -> Html {
         )
       } else {
         div(class="sigil-side-table-list", sidebar_table_rows(emit, model))
+      },
+    ]),
+    div(class="sigil-sidebar-section sigil-sidebar-images", [
+      div(class="sigil-sidebar-title", [
+        span(tr(model.lang, "Charts", "图表")),
+        import_charts_button(
+          emit,
+          model.library_doc_id,
+          "sigil-sidebar-action",
+          tr(model.lang, "Import", "导入"),
+        ),
+      ]),
+      if model.charts.is_empty() {
+        div(
+          class="sigil-sidebar-empty",
+          tr(model.lang, "No charts yet.", "暂无图表。"),
+        )
+      } else {
+        div(class="sigil-side-table-list", sidebar_chart_rows(emit, model))
       },
     ]),
   ])
@@ -1716,6 +2014,33 @@ fn workspace_preview_pane(
             ),
           )
       }
+    ChartPreview =>
+      match find_chart(library.charts, model.workspace_preview_item_id) {
+        Some(chart) => {
+          let palette = chart_document_palette(document)
+          (
+            chart.name,
+            div(class="sigil-workspace-preview-stage is-table", [
+              iframe(
+                class="sigil-workspace-preview-frame",
+                title=chart.name,
+                sandbox="allow-same-origin",
+                attrs=@html.Attrs::build().srcdoc(
+                  chart_srcdoc(chart.kind, chart.text, palette),
+                ),
+              ),
+            ]),
+          )
+        }
+        None =>
+          (
+            tr(model.lang, "Chart", "图表"),
+            div(
+              class="sigil-workspace-preview-empty",
+              tr(model.lang, "Chart not found.", "找不到图表。"),
+            ),
+          )
+      }
   }
   div(class="sigil-preview", [
     div(class="sigil-pane-bar", [
@@ -1741,11 +2066,12 @@ fn compose_workspace(
   document : EmailDoc,
 ) -> Html {
   let result = @parser.parse(document.source)
-  let preview_html = @render.render_email_html_with_tables(
+  let preview_html = @render.render_email_html_with_libraries(
     result.document,
     to_core_profile(model.profile),
     asset_map(model.assets),
     table_map(model.tables),
+    chart_map(model.charts),
   )
   let right_pane = if model.workspace_preview_kind != NoPreview &&
     model.workspace_preview_doc_id == document.id {
@@ -2347,6 +2673,171 @@ fn tables_tab(emit : Emit[Msg], model : Model) -> Html {
 }
 
 ///|
+fn import_charts_button(
+  emit : Emit[Msg],
+  doc_id : String,
+  class : String,
+  label : String,
+) -> Html {
+  button(
+    type_="button",
+    class~,
+    attrs=@html.Attrs::build().on_click(_ => {
+      let command = emit(PrepareChartImport(doc_id))
+      open_chart_picker()
+      command
+    }),
+    [span(label)],
+  )
+}
+
+///|
+fn chart_picker(emit : Emit[Msg]) -> Html {
+  input(
+    input_type=@html.InputType::File,
+    id="sigil-chart-input",
+    multiple=true,
+    accept=".txt,.chart,.sigil,text/plain",
+    class="sigil-file-input",
+    on_change=emit.map(_ => ImportCharts),
+  )
+}
+
+///|
+fn chart_card(
+  emit : Emit[Msg],
+  model : Model,
+  document : EmailDoc,
+  chart : ChartAsset,
+) -> Html {
+  let palette = chart_document_palette(document)
+  div(class="sigil-table-card", [
+    iframe(
+      class="sigil-chart-mini-frame",
+      title=chart.name,
+      sandbox="allow-same-origin",
+      attrs=@html.Attrs::build().srcdoc(
+        chart_srcdoc(chart.kind, chart.text, palette, compact=true),
+      ),
+    ),
+    div(class="sigil-table-card-main", [
+      span(class="sigil-table-name", chart.name),
+      span(class="sigil-table-meta", chart_kind_label(model.lang, chart.kind)),
+    ]),
+    div(class="sigil-table-actions", [
+      button(
+        type_="button",
+        class="sigil-button is-small",
+        on_click=emit(OpenChartPreview(document.id, chart.id)),
+        tr(model.lang, "Edit", "编辑"),
+      ),
+      button(
+        type_="button",
+        class="sigil-button is-small is-danger",
+        on_click=emit(DeleteChart(document.id, chart.id)),
+        tr(model.lang, "Remove", "删除"),
+      ),
+    ]),
+  ])
+}
+
+///|
+fn chart_group(
+  emit : Emit[Msg],
+  model : Model,
+  document : EmailDoc,
+) -> Html {
+  let library = library_for_document(model, document.id)
+  let cards : Array[Html] = []
+  for chart in library.charts {
+    cards.push(chart_card(emit, model, document, chart))
+  }
+  let body = if cards.is_empty() {
+    div(
+      class="sigil-library-empty",
+      tr(model.lang, "No charts yet.", "暂无图表。"),
+    )
+  } else {
+    div(class="sigil-table-grid", cards)
+  }
+  div(class="sigil-library-group", [
+    div(class="sigil-library-group-header", [
+      div(class="sigil-library-group-title", [
+        span(class="sigil-library-group-name", document.title),
+        if document.id == model.library_doc_id {
+          span(class="sigil-library-current", tr(model.lang, "Current", "当前"))
+        } else {
+          @html.nothing
+        },
+        span(
+          class="sigil-library-group-count",
+          library.charts.length().to_string() +
+          tr(model.lang, " charts", " 个图表"),
+        ),
+      ]),
+      div(class="sigil-library-group-actions", [
+        import_charts_button(
+          emit,
+          document.id,
+          "sigil-sidebar-action",
+          tr(model.lang, "Import", "导入"),
+        ),
+        button(
+          type_="button",
+          class="sigil-sidebar-action",
+          on_click=emit(NewChart(document.id)),
+          tr(model.lang, "+ New", "+ 新建"),
+        ),
+      ]),
+    ]),
+    body,
+  ])
+}
+
+///|
+fn charts_tab(emit : Emit[Msg], model : Model) -> Html {
+  let groups : Array[Html] = []
+  for document in model.documents {
+    groups.push(chart_group(emit, model, document))
+  }
+  let content = if groups.is_empty() {
+    div(
+      class="sigil-assets-empty",
+      tr(model.lang, "Create an email to add charts.", "新建邮件后可添加图表。"),
+    )
+  } else {
+    div(class="sigil-library-groups", groups)
+  }
+  let palette_name = match find_document(model.documents, model.library_doc_id) {
+    Some(document) => chart_document_palette(document)
+    None => @types.chart_palette_default()
+  }
+  div(class="sigil-tables-tab", [
+    div(class="sigil-images-header", [
+      div(class="sigil-images-heading", [
+        span(
+          class="sigil-profile-kicker",
+          tr(model.lang, "Libraries / Charts", "资源库 / 图表"),
+        ),
+        span(
+          class="sigil-profile-title",
+          tr(model.lang, "Chart library", "图表库"),
+        ),
+        span(
+          class="sigil-profile-subtitle",
+          tr(
+            model.lang,
+            "Charts are plain-text files inserted with <chart:name>. Current palette: ",
+            "图表是纯文本文件，通过 <chart:name> 插入。当前配色：",
+          ) + palette_name,
+        ),
+      ]),
+    ]),
+    content,
+  ])
+}
+
+///|
 fn choice_button(selected : Bool, on_click : Cmd, label : String) -> Html {
   button(
     type_="button",
@@ -2589,6 +3080,7 @@ fn styles_tab(emit : Emit[Msg], model : Model) -> Html {
         LetterStyle,
         FooterStyle,
         SplitStyle,
+        ChartStyle,
         SignatureStyle,
       ]
       let kind_buttons : Array[Html] = []
@@ -2714,12 +3206,17 @@ fn main_content(emit : Emit[Msg], model : Model) -> Html {
   } else if model.active_tab == tables_tab_id &&
     model.preview_kind is TablePreview {
     preview_page(emit, model)
+  } else if model.active_tab == charts_tab_id &&
+    model.preview_kind is ChartPreview {
+    preview_page(emit, model)
   } else if model.active_tab == profile_tab_id {
     profile_tab(emit, model)
   } else if model.active_tab == images_tab_id {
     images_tab(emit, model)
   } else if model.active_tab == tables_tab_id {
     tables_tab(emit, model)
+  } else if model.active_tab == charts_tab_id {
+    charts_tab(emit, model)
   } else if model.active_tab == settings_tab_id {
     settings_tab(emit, model)
   } else if model.active_tab == styles_tab_id {
@@ -2933,6 +3430,73 @@ fn preview_page(emit : Emit[Msg], model : Model) -> Html {
             ),
           )
       }
+    ChartPreview =>
+      match find_chart(library.charts, model.preview_item_id) {
+        Some(chart) => {
+          let palette = match document {
+            Some(value) => chart_document_palette(value)
+            None => @types.chart_palette_default()
+          }
+          let kind_buttons : Array[Html] = []
+          for kind in chart_kinds() {
+            kind_buttons.push(
+              button(
+                type_="button",
+                class=if model.chart_kind_draft == kind {
+                  "sigil-choice is-selected"
+                } else {
+                  "sigil-choice"
+                },
+                on_click=emit(EditChartKind(kind)),
+                [span(chart_kind_label(model.lang, kind))],
+              ),
+            )
+          }
+          let preview_html = chart_srcdoc(
+            model.chart_kind_draft,
+            model.chart_text_draft,
+            palette,
+          )
+          let panel = div(class="sigil-chart-editor-panel", [
+            div(class="sigil-chart-editor-kinds", kind_buttons),
+            textarea(
+              class="sigil-chart-editor-textarea",
+              value=model.chart_text_draft,
+              placeholder=tr(
+                model.lang,
+                "title: Chart title\nlabels: A, B, C\nseries: Series 1 = 1, 2, 3",
+                "title: 图表标题\nlabels: A, B, C\nseries: 系列 1 = 1, 2, 3",
+              ),
+              on_input=emit.map(text => EditChartText(text)),
+              ([] : Array[Html]),
+            ),
+            div(class="sigil-chart-editor-preview", [
+              iframe(
+                class="sigil-chart-editor-preview-frame",
+                title=chart.name,
+                sandbox="allow-same-origin",
+                attrs=@html.Attrs::build().srcdoc(preview_html),
+              ),
+            ]),
+          ])
+          (
+            chart.name,
+            email_title + " · " + chart_kind_label(model.lang, model.chart_kind_draft),
+            div(class="sigil-inline-preview-body is-table", [
+              div(class="sigil-table-editor-wrap", [panel]),
+            ]),
+          )
+        }
+        None =>
+          (
+            tr(model.lang, "Chart", "图表"),
+            email_title,
+            div(
+              class="sigil-preview-empty",
+              tr(model.lang, "Chart not found.", "找不到图表。"),
+            ),
+          )
+      }
   }
   div(class="sigil-inline-preview", [
     div(class="sigil-inline-preview-bar", [
@@ -2982,6 +3546,10 @@ fn statusbar(model : Model) -> Html {
       ),
       span(
         class="sigil-status-item",
+        tr(model.lang, "Charts ", "图表 ") + model.charts.length().to_string(),
+      ),
+      span(
+        class="sigil-status-item",
         tr(model.lang, "Chars ", "字符 ") + source.length().to_string(),
       ),
       span(
@@ -3015,6 +3583,7 @@ fn view(emit : Emit[Msg], model : Model) -> Html {
     titlebar(emit, model),
     image_picker(emit),
     table_picker(emit),
+    chart_picker(emit),
     avatar_picker(emit),
     div(class="sigil-body", [
       activity_bar(emit, model),

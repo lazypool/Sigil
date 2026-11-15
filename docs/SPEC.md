@@ -27,7 +27,7 @@ A document consists of two parts:
 [Body]
 ```
 
-- **Header directive block**: consecutive `@key value` lines at the very beginning of the document. Only four global directives are allowed.
+- **Header directive block**: consecutive `@key value` lines at the very beginning of the document. Only the global directives below are allowed.
 - **Body**: starts at the first non-`@` line and continues to the end of the document.
 - At least one blank line must separate the header block from the body.
 - Header directives must not appear in the body. An `@...` line in the body is treated as plain text and produces a warning.
@@ -36,7 +36,7 @@ A document consists of two parts:
 
 ## 2. Header Directives
 
-Only the following four directives are allowed in the header. Each may appear at most once.
+Only the following directives are allowed in the header. Each may appear at most once.
 
 | Directive | Value | Purpose |
 |---|---|---|
@@ -44,6 +44,7 @@ Only the following four directives are allowed in the header. Each may appear at
 | `@footer` | Footer theme id | Selects footer theme; appended automatically to the end |
 | `@split` | Divider style id | Selects divider style for all `---` |
 | `@letter` | Letter theme id | Selects the outer letter frame |
+| `@palette` | Chart palette id | Selects the palette used by every chart |
 
 ### 2.1 Syntax
 
@@ -52,6 +53,7 @@ Only the following four directives are allowed in the header. Each may appear at
 @footer legal
 @split wave
 @letter card
+@palette ocean
 ```
 
 ### 2.2 Rules
@@ -226,6 +228,7 @@ All insertions use `<>` and **must carry an explicit prefix**. An unprefixed `<>
 | `sig:` | Signature | Block, must occupy its own line | `<sig:academic>` |
 | `image:` | Image | Block, must occupy its own line | `<image:product.png>` |
 | `table:` | Table | Block, must occupy its own line | `<table:report.csv>` |
+| `chart:` | Chart | Block, must occupy its own line | `<chart:growth.chart>` |
 | `icon:` | Built-in icon | Inline | `<icon:mail>` |
 | `link:` | Hyperlink | Inline | `<link:https://a.com>` |
 
@@ -271,6 +274,20 @@ All insertions use `<>` and **must carry an explicit prefix**. An unprefixed `<>
   import. Only the first worksheet of a workbook is imported.
 - Each email owns its own image and table library. Both are flat lists with
   no folders or categories.
+
+#### 3.5.4 Chart `<chart:...>`
+
+```text
+<chart:growth.chart>
+```
+
+- **Must occupy its own line**; inline occurrence → error.
+- The target is a chart asset in the email's chart library; the value is the
+  asset name.
+- Chart assets are plain text. Import accepts either a full `:::chart kind`
+  block or a `kind: bar` first line followed by chart data.
+- New charts can also be created empty in the Charts tab and edited in place.
+- Charts use the document `@palette` preset, not the `@theme` color.
 - The Images and Tables tabs group their contents by the owning email, so every
   email's library can be browsed and edited from the same tab.
 - Library tabs provide an inline preview page for images and tables; they do
@@ -358,9 +375,22 @@ B: 20
 ```
 
 - Block element, occupies its own paragraph.
-- Inner content is simple key-value data, not a code block.
+- Inner content is simple line-based data, not a code block.
+- Supported types: `bar`, `stacked`, `line`, `area`, `pie`, `donut`,
+  `scatter`, `radar`, and `heatmap`.
+- Chart colors come from the document-wide `@palette` preset, not from
+  `@theme`. Available palettes: `default`, `ocean`, `sunset`, `forest`,
+  `berry`, `earth`, `mono`.
+- `title: ...` sets the caption and `labels: a, b, c` sets categories.
+- Multi-series charts use `series: name = value, value, ...`; a lone
+  `label: value` line is shorthand for a single series.
+- Scatter points use `x,y; x,y` after `series:`.
 - Preview outputs SVG; on send, rasterized to PNG and embedded.
-- Chart type and data fields are validated by the renderer; unknown types → error.
+- Unknown chart types render a placeholder instead of failing the document.
+- Charts can be stored in the per-email chart library and inserted with
+  `<chart:name>`, like `<image:name>` and `<table:name>`.
+- A chart library file is plain text: either the same `:::chart kind` block
+  used inline, or a first line `kind: bar` followed by chart data.
 
 ### 3.8 Plain Text Notes
 
@@ -611,6 +641,8 @@ Rendered result:
 | Inline `$...$` | Error | Inline formulas not supported |
 | `$$` not as standalone paragraph | Error | Formula must be standalone |
 | Duplicate header directive | Error | Keep first |
+| Unknown `@palette` preset | Error | Use a built-in palette id |
+| `<chart:...>` inline | Error | Must occupy its own line |
 | `@` directive in body | Warning | Treat as plain text |
 | Missing space between Han and Latin | Warning | Safe auto-fix |
 | Half-width comma in Chinese context | Warning | Suggested fix |

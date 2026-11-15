@@ -336,12 +336,37 @@ fn render_image(name : String, assets : Map[String, String]) -> String {
 }
 
 ///|
+fn chart_palette_name(document : Document) -> String {
+  match document.palette {
+    Some(value) => value
+    None => @types.chart_palette_default()
+  }
+}
+
+///|
+fn render_chart_ref(
+  name : String,
+  charts : Map[String, @types.ChartSpec],
+  palette : String,
+) -> String {
+  match charts.get(name) {
+    Some(spec) => render_chart_html(spec.kind, spec.text, palette)
+    None =>
+      "<div style=\"margin:20px auto;padding:12px 14px;border:1px solid #e5e5e5;border-radius:4px;background:#fafafa;text-align:center;color:#8a8a8a;font-size:13px;\">" +
+      "Chart not found: " +
+      escape_html(name) +
+      "</div>"
+  }
+}
+
+///|
 fn render_block(
   block : Block,
   document : Document,
   profile : Profile,
   assets : Map[String, String],
   tables : Map[String, String],
+  charts : Map[String, @types.ChartSpec],
   accent : String,
 ) -> String {
   match block {
@@ -355,14 +380,8 @@ fn render_block(
     Signature(theme) => render_signature(theme, profile, accent)
     Formula(text) => render_formula_html(text)
     Table(name) => render_table(name, tables, accent)
-    Chart(kind, text) =>
-      "<div style=\"margin:18px 0;padding:12px 14px;border:1px solid #e5e5e5;border-radius:4px;background:#fafafa;\">" +
-      "<div style=\"font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;\">" +
-      escape_html(kind) +
-      " chart</div>" +
-      "<pre style=\"margin:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.5;white-space:pre-wrap;color:#333;\">" +
-      escape_html(text) +
-      "</pre></div>"
+    Chart(kind, text) => render_chart_html(kind, text, chart_palette_name(document))
+    ChartRef(name) => render_chart_ref(name, charts, chart_palette_name(document))
     PlainText(text) =>
       "<div style=\"margin:18px 0;color:#8a8a8a;font-size:14px;line-height:1.7;white-space:pre-wrap;\">" +
       escape_html(text) +
@@ -386,11 +405,22 @@ pub fn render_document_with_tables(
   assets : Map[String, String],
   tables : Map[String, String],
 ) -> String {
+  render_document_with_libraries(document, profile, assets, tables, Map([]))
+}
+
+///|
+pub fn render_document_with_libraries(
+  document : Document,
+  profile : Profile,
+  assets : Map[String, String],
+  tables : Map[String, String],
+  charts : Map[String, @types.ChartSpec],
+) -> String {
   let accent = theme_color(document)
   let builder = StringBuilder()
   for block in document.blocks {
     builder.write_string(
-      render_block(block, document, profile, assets, tables, accent),
+      render_block(block, document, profile, assets, tables, charts, accent),
     )
   }
   builder.write_string(render_footer(document.footer, profile, accent))
@@ -413,7 +443,22 @@ pub fn render_email_html_with_tables(
   assets : Map[String, String],
   tables : Map[String, String],
 ) -> String {
-  let body = render_document_with_tables(document, profile, assets, tables)
+  render_email_html_with_libraries(
+    document, profile, assets, tables, Map([]),
+  )
+}
+
+///|
+pub fn render_email_html_with_libraries(
+  document : Document,
+  profile : Profile,
+  assets : Map[String, String],
+  tables : Map[String, String],
+  charts : Map[String, @types.ChartSpec],
+) -> String {
+  let body = render_document_with_libraries(
+    document, profile, assets, tables, charts,
+  )
   let accent = theme_color(document)
   let letter = match document.letter {
     Some(letter) => letter

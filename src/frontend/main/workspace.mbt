@@ -61,6 +61,9 @@ let images_tab_id = "@images"
 let tables_tab_id = "@tables"
 
 ///|
+let charts_tab_id = "@charts"
+
+///|
 let settings_tab_id = "@settings"
 
 ///|
@@ -78,6 +81,7 @@ fn document_template(lang : Lang) -> String {
         #|@footer legal
         #|@split wave
         #|@letter card
+        #|@palette default
         #|
         #|**你好，Sigil！**
         #|
@@ -93,10 +97,10 @@ fn document_template(lang : Lang) -> String {
         #|
         #|Sigil 额外的使用方法如下：
         #|
-        #|- @theme 设置主题色，@letter 选择信纸，@split 选择分隔符，@footer 追加页脚。
+        #|- @theme 设置主题色，@palette 选择图表配色，@letter 选择信纸，@split 选择分隔符，@footer 追加页脚。
         #|- <sig:classic> 插入个人签名，签名内容来自你的 Profile。
         #|- <link:https://example.com|示例链接> 生成主题色链接，<icon:mail> 插入内置图标。
-        #|- <image:name> 插入图片库中的图片，<table:name.csv> 插入表格，$$ 块排版公式，:::chart 块绘制简单图表。
+        #|- <image:name> 插入图片库中的图片，<table:name.csv> 插入表格，<chart:name> 插入图表，$$ 块排版公式，:::chart 块绘制简单图表。
         #|
         #|你可以直接修改这段文字，或从左侧新建一封邮件开始写作。
         #|
@@ -117,6 +121,7 @@ fn document_template(lang : Lang) -> String {
         #|@footer legal
         #|@split wave
         #|@letter card
+        #|@palette default
         #|
         #|**Hello, Sigil!**
         #|
@@ -132,10 +137,10 @@ fn document_template(lang : Lang) -> String {
         #|
         #|Additional ways to use Sigil:
         #|
-        #|- @theme sets the theme color, @letter selects the letter style, @split selects the divider, and @footer appends the footer.
+        #|- @theme sets the theme color, @palette selects the chart palette, @letter selects the letter style, @split selects the divider, and @footer appends the footer.
         #|- <sig:classic> inserts the personal signature from your Profile.
         #|- <link:https://example.com|Example link> creates a theme-colored link, and <icon:mail> inserts a built-in icon.
-        #|- <image:name> inserts an image from the library, <table:name.csv> inserts a table, $$ blocks typeset formulas, and :::chart blocks draw simple charts.
+        #|- <image:name> inserts an image from the library, <table:name.csv> inserts a table, <chart:name> inserts a chart, $$ blocks typeset formulas, and :::chart blocks draw simple charts.
         #|
         #|Edit this text directly, or create a new email from the sidebar to start writing.
         #|

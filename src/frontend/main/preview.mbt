@@ -14,11 +14,12 @@ fn render_source(
 ) -> (String, Array[@types.Diagnostic]) {
   let result = @parser.parse(document.source)
   let library = library_for_document(model, document.id)
-  let html = @render.render_email_html_with_tables(
+  let html = @render.render_email_html_with_libraries(
     result.document,
     to_core_profile(model.profile),
     asset_map(library.images),
     table_map(library.tables),
+    chart_map(library.charts),
   )
   (html, result.diagnostics)
 }
@@ -83,7 +84,7 @@ extern "js" fn save_html_file(filename : String, html : String) -> Unit =
   #|   let live = [];
   #|   try {
   #|     if (frame && frame.contentDocument) {
-  #|       live = Array.from(frame.contentDocument.querySelectorAll('[data-sigil-math]'));
+  #|       live = Array.from(frame.contentDocument.querySelectorAll('[data-sigil-math],[data-sigil-chart]'));
   #|     }
   #|   } catch (error) {
   #|     live = [];
@@ -92,7 +93,7 @@ extern "js" fn save_html_file(filename : String, html : String) -> Unit =
   #|   let targets = [];
   #|   try {
   #|     doc = new DOMParser().parseFromString(html, 'text/html');
-  #|     targets = Array.from(doc.querySelectorAll('[data-sigil-math]'));
+  #|     targets = Array.from(doc.querySelectorAll('[data-sigil-math],[data-sigil-chart]'));
   #|   } catch (error) {
   #|     doc = null;
   #|   }
@@ -131,7 +132,7 @@ extern "js" fn save_html_file(filename : String, html : String) -> Unit =
   #|           reject(error);
   #|         }
   #|       };
-  #|       image.onerror = () => reject(new Error('formula image failed'));
+  #|       image.onerror = () => reject(new Error('math or chart image failed'));
   #|       image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   #|     } catch (error) {
   #|       reject(error);
