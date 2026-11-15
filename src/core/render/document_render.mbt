@@ -352,10 +352,7 @@ fn render_block(
     ListBlock(kind, items) => render_list(kind, items, accent)
     Image(name) => render_image(name, assets)
     Signature(theme) => render_signature(theme, profile, accent)
-    Formula(text) =>
-      "<div style=\"margin:18px 0;padding:12px 14px;border:1px solid #e5e5e5;border-radius:4px;background:#fafafa;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;line-height:1.6;white-space:pre-wrap;color:#333;\">" +
-      escape_html(text) +
-      "</div>"
+    Formula(text) => render_formula_html(text)
     Chart(kind, text) =>
       "<div style=\"margin:18px 0;padding:12px 14px;border:1px solid #e5e5e5;border-radius:4px;background:#fafafa;\">" +
       "<div style=\"font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;\">" +
