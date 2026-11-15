@@ -449,7 +449,7 @@ fn math_render_node(node : MathNode) -> String {
 pub fn render_formula_html(tex : String) -> String {
   let chars = tex.to_array()
   let (nodes, _) = math_parse_seq_until(chars, 0, None)
-  "<div style=\"margin:20px 0;text-align:center;\">" +
+  "<div class=\"sigil-math\" data-sigil-math=\"1\" style=\"margin:20px 0;text-align:center;\">" +
   "<span style=\"display:inline-block;max-width:100%;font-family:'Times New Roman',Times,Georgia,serif;font-size:19px;line-height:1.6;color:#222833;\">" +
   math_render_nodes(nodes) +
   "</span></div>"

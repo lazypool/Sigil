@@ -11,10 +11,16 @@ using @html {
   img,
   input,
   label,
-  option,
-  select,
   span,
   textarea,
+}
+
+///|
+#derive(Eq)
+enum PreviewKind {
+  NoPreview
+  ImagePreview
+  TablePreview
 }
 
 ///|
@@ -22,15 +28,20 @@ using @html {
 struct Model {
   documents : Array[EmailDoc]
   assets : Array[ImageAsset]
+  tables : Array[TableAsset]
+  library_doc_id : String
+  import_doc_id : String
+  preview_kind : PreviewKind
+  preview_doc_id : String
+  preview_item_id : String
+  table_draft : String
+  pending_delete_doc_id : String
+  table_notice : String
   open_tabs : Array[String]
   active_tab : String
   split_pct : Double
   dragging : Bool
   sidebar_open : Bool
-  folders : Array[String]
-  image_folder : String
-  creating_folder : Bool
-  folder_draft : String
   profile : Profile
   profile_draft : Profile
   lang : Lang
@@ -43,17 +54,14 @@ struct Model {
 enum Msg {
   SourceChanged(String)
   RenameDocument(String)
-  SelectFolder(String)
-  ToggleNewFolder
-  FolderDraftChanged(String)
-  CreateFolder
-  MoveAsset(String, String)
   BeginDrag
   DragMoved(Double)
   EndDrag
   SelectTab(String)
   OpenDocument(String)
   CloseTab(String)
+  RequestDeleteDocument(String)
+  CancelDeleteDocument
   NewDocument
   ToggleSidebar
   OpenProfile
@@ -62,10 +70,24 @@ enum Msg {
   ProfileFieldChanged(ProfileField, String)
   SaveProfile
   ImportImages
+  PrepareImageImport(String)
   AssetsImported(String)
-  InsertAsset(String)
-  DeleteAsset(String)
+  InsertAsset(String, String)
+  DeleteAsset(String, String)
+  OpenImagePreview(String, String)
+  ClosePreview
   DeleteDocument(String)
+  OpenTables
+  ImportTables
+  PrepareTableImport(String)
+  TablesImported(String)
+  InsertTable(String, String)
+  DeleteTable(String, String)
+  OpenTablePreview(String, String)
+  EditTableCell(Int32, Int32, String)
+  AddTableRow
+  AddTableColumn
+  DismissTableNotice
   ToggleLanguage
   OpenSettings
   SetTheme(AppTheme)
@@ -84,9 +106,26 @@ enum Msg {
 
 ///|
 fn initial_model() -> Model {
+  clear_legacy_libraries()
   let lang = load_lang()
   let workspace = load_workspace(lang)
   let profile = load_profile()
+  let stored_context = load_library_context()
+  let library_doc_id = if
+    find_document(workspace.documents, workspace.active_tab) is Some(_) {
+    workspace.active_tab
+  } else if stored_context != "" &&
+    find_document(workspace.documents, stored_context) is Some(_) {
+    stored_context
+  } else {
+    library_context_id(
+      workspace.documents,
+      workspace.active_tab,
+      workspace.open_tabs,
+    )
+  }
+  let library = load_library(library_doc_id)
+  save_library_context(library_doc_id)
   let style_doc_id = match
     find_document(workspace.documents, workspace.active_tab) {
     Some(document) => document.id
@@ -99,16 +138,21 @@ fn initial_model() -> Model {
   }
   {
     documents: workspace.documents,
-    assets: load_assets(),
+    assets: library.images,
+    tables: library.tables,
+    library_doc_id,
+    import_doc_id: "",
+    preview_kind: NoPreview,
+    preview_doc_id: "",
+    preview_item_id: "",
+    table_draft: "",
+    pending_delete_doc_id: "",
+    table_notice: "",
     open_tabs: workspace.open_tabs,
     active_tab: workspace.active_tab,
     split_pct: workspace.split_pct,
     dragging: false,
     sidebar_open: workspace.sidebar_open,
-    folders: workspace.folders,
-    image_folder: workspace.image_folder,
-    creating_folder: false,
-    folder_draft: "",
     profile,
     profile_draft: profile,
     lang,
@@ -126,8 +170,8 @@ fn persist(model : Model) -> Unit {
     active_tab: model.active_tab,
     split_pct: model.split_pct,
     sidebar_open: model.sidebar_open,
-    folders: model.folders,
-    image_folder: model.image_folder,
+    folders: [],
+    image_folder: "",
   })
 }
 
@@ -145,16 +189,17 @@ fn active_source(model : Model) -> String {
 }
 
 ///|
-fn target_document_id(model : Model) -> String? {
-  match active_document(model) {
-    Some(document) => Some(document.id)
-    None =>
-      if model.documents.is_empty() {
-        None
-      } else {
-        Some(model.documents[0].id)
-      }
+fn truncate_text(value : String, max_chars : Int32) -> String {
+  let builder = StringBuilder()
+  let mut count = 0
+  for ch in value {
+    if count >= max_chars {
+      break
+    }
+    builder.write_char(ch)
+    count = count + 1
   }
+  builder.to_string()
 }
 
 ///|
@@ -173,19 +218,6 @@ fn split_at(client_x : Double) -> Double {
   let width = @dom.window().inner_width()
   let pct = if width <= 0.0 { 58.0 } else { client_x / width * 100.0 }
   clamp_split(pct)
-}
-
-///|
-fn confirm_delete_document(model : Model, id : String) -> Bool {
-  match find_document(model.documents, id) {
-    None => false
-    Some(document) =>
-      @dom.window().confirm(
-        tr(model.lang, "Delete \"", "删除邮件“") +
-        document.title +
-        tr(model.lang, "\"? This cannot be undone.", "”？此操作无法撤销。"),
-      )
-  }
 }
 
 ///|
@@ -211,46 +243,6 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
       persist(next)
       (next, @rabbita.none)
     }
-    SelectFolder(folder) =>
-      if folder == "" || contains_id(model.folders, folder) {
-        let next = { ..model, image_folder: folder, }
-        persist(next)
-        (next, @rabbita.none)
-      } else {
-        (model, @rabbita.none)
-      }
-    ToggleNewFolder =>
-      (
-        { ..model, creating_folder: !model.creating_folder, folder_draft: "", },
-        @rabbita.none,
-      )
-    FolderDraftChanged(value) =>
-      ({ ..model, folder_draft: value, }, @rabbita.none)
-    CreateFolder =>
-      match folder_path(model.image_folder, model.folder_draft) {
-        None => (model, @rabbita.none)
-        Some(path) =>
-          if contains_id(model.folders, path) {
-            (model, @rabbita.none)
-          } else {
-            let folders = model.folders.copy()
-            folders.push(path)
-            let next = {
-              ..model,
-              folders,
-              image_folder: path,
-              creating_folder: false,
-              folder_draft: "",
-            }
-            persist(next)
-            (next, @rabbita.none)
-          }
-      }
-    MoveAsset(id, folder) => {
-      let assets = move_asset(model.assets, id, folder)
-      save_assets(assets)
-      ({ ..model, assets, }, @rabbita.none)
-    }
     BeginDrag => ({ ..model, dragging: true, }, @rabbita.none)
     DragMoved(client_x) =>
       if model.dragging {
@@ -261,7 +253,13 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
     EndDrag => ({ ..model, dragging: false, }, @rabbita.none)
     SelectTab(id) =>
       if contains_id(model.open_tabs, id) {
-        let next = { ..model, active_tab: id, }
+        let base = { ..model, active_tab: id, }
+        let next = if id != model.library_doc_id &&
+          find_document(model.documents, id) is Some(_) {
+          switch_library(base, id)
+        } else {
+          base
+        }
         persist(next)
         (next, @rabbita.none)
       } else {
@@ -270,14 +268,21 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
     OpenDocument(id) => {
       let valid = id == profile_tab_id ||
         id == images_tab_id ||
+        id == tables_tab_id ||
         id == settings_tab_id ||
         id == styles_tab_id ||
         find_document(model.documents, id) is Some(_)
       if valid {
-        let next = {
+        let base = {
           ..model,
           open_tabs: ensure_tab(model.open_tabs, id),
           active_tab: id,
+        }
+        let next = if id != model.library_doc_id &&
+          find_document(model.documents, id) is Some(_) {
+          switch_library(base, id)
+        } else {
+          base
         }
         persist(next)
         (next, @rabbita.none)
@@ -296,24 +301,32 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
       } else {
         model.active_tab
       }
-      let next = { ..model, open_tabs, active_tab, }
+      let base = { ..model, open_tabs, active_tab, }
+      let next = if active_tab != model.active_tab &&
+        find_document(model.documents, active_tab) is Some(_) &&
+        active_tab != model.library_doc_id {
+        switch_library(base, active_tab)
+      } else {
+        base
+      }
       persist(next)
       (next, @rabbita.none)
     }
     NewDocument => {
       let document = new_document(
-        tr(model.lang, "Untitled ", "未命名 ") +
-        (model.documents.length() + 1).to_string(),
+        next_document_title(model.documents, model.lang),
         model.lang,
       )
       let documents = model.documents.copy()
       documents.push(document)
-      let next = {
+      save_active_library(model)
+      let base = {
         ..model,
         documents,
         open_tabs: ensure_tab(model.open_tabs, document.id),
         active_tab: document.id,
       }
+      let next = model_with_library(base, document.id, empty_library())
       persist(next)
       (next, @rabbita.none)
     }
@@ -451,16 +464,28 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
         model,
         @rabbita.perform(json => emit(AssetsImported(json)), import_images_task),
       )
+    PrepareImageImport(doc_id) =>
+      if find_document(model.documents, doc_id) is Some(_) {
+        ({ ..model, import_doc_id: doc_id, }, @rabbita.none)
+      } else {
+        (model, @rabbita.none)
+      }
     AssetsImported(json) => {
       let imported = parse_assets(json)
-      if imported.is_empty() {
-        (model, @rabbita.none)
+      let target = import_target_id(model)
+      if imported.is_empty() || target == "" {
+        ({ ..model, import_doc_id: "", }, @rabbita.none)
       } else {
-        let assets = merge_assets(model.assets, imported, model.image_folder)
-        save_assets(assets)
+        let library = library_for_document(model, target)
+        let assets = merge_assets(library.images, imported)
+        let next = commit_library(
+          model,
+          target,
+          { ..library, images: assets },
+        )
         let next = {
-          ..model,
-          assets,
+          ..next,
+          import_doc_id: "",
           open_tabs: ensure_tab(model.open_tabs, images_tab_id),
           active_tab: images_tab_id,
         }
@@ -468,46 +493,339 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
         (next, @rabbita.none)
       }
     }
-    InsertAsset(id) =>
-      match find_asset(model.assets, id) {
+    InsertAsset(doc_id, id) =>
+      match find_document(model.documents, doc_id) {
         None => (model, @rabbita.none)
-        Some(asset) =>
-          match target_document_id(model) {
+        Some(document) => {
+          let library = library_for_document(model, doc_id)
+          match find_asset(library.images, id) {
             None => (model, @rabbita.none)
-            Some(document_id) =>
-              match find_document(model.documents, document_id) {
-                None => (model, @rabbita.none)
-                Some(document) => {
-                  let markup = asset_markup(asset.name)
-                  let inserted = insert_at_cursor(markup)
-                  let source = if inserted == "" {
-                    document.source + markup
-                  } else {
-                    inserted
-                  }
-                  let next = {
-                    ..model,
-                    documents: with_document_source(
-                      model.documents,
-                      document_id,
-                      source,
-                    ),
-                    open_tabs: ensure_tab(model.open_tabs, document_id),
-                    active_tab: document_id,
-                  }
-                  persist(next)
-                  (next, @rabbita.none)
-                }
+            Some(asset) => {
+              let markup = asset_markup(asset.name)
+              let inserted = insert_at_cursor(markup)
+              let source = if inserted == "" {
+                document.source + markup
+              } else {
+                inserted
               }
+              let base = {
+                ..model,
+                documents: with_document_source(
+                  model.documents,
+                  doc_id,
+                  source,
+                ),
+                open_tabs: ensure_tab(model.open_tabs, doc_id),
+                active_tab: doc_id,
+              }
+              let next = if model.library_doc_id != doc_id {
+                switch_library(base, doc_id)
+              } else {
+                base
+              }
+              persist(next)
+              (next, @rabbita.none)
+            }
           }
+        }
       }
-    DeleteAsset(id) => {
-      let assets = remove_asset(model.assets, id)
-      save_assets(assets)
-      ({ ..model, assets, }, @rabbita.none)
+    DeleteAsset(doc_id, id) => {
+      if find_document(model.documents, doc_id) is None {
+        (model, @rabbita.none)
+      } else {
+        let library = library_for_document(model, doc_id)
+        let assets = remove_asset(library.images, id)
+        let next = commit_library(model, doc_id, { ..library, images: assets })
+        let next = if model.preview_kind is ImagePreview &&
+          model.preview_item_id == id {
+          {
+            ..next,
+            preview_kind: NoPreview,
+            preview_doc_id: "",
+            preview_item_id: "",
+            table_draft: "",
+          }
+        } else {
+          next
+        }
+        (next, @rabbita.none)
+      }
     }
-    DeleteDocument(id) =>
-      if confirm_delete_document(model, id) {
+    OpenImagePreview(doc_id, id) =>
+      if find_document(model.documents, doc_id) is Some(_) &&
+        find_asset(library_for_document(model, doc_id).images, id) is Some(_) {
+        (
+          {
+            ..model,
+            open_tabs: ensure_tab(model.open_tabs, images_tab_id),
+            active_tab: images_tab_id,
+            preview_kind: ImagePreview,
+            preview_doc_id: doc_id,
+            preview_item_id: id,
+            table_draft: "",
+          },
+          @rabbita.none,
+        )
+      } else {
+        (model, @rabbita.none)
+      }
+    ClosePreview =>
+      (
+        {
+          ..model,
+          preview_kind: NoPreview,
+          preview_doc_id: "",
+          preview_item_id: "",
+          table_draft: "",
+        },
+        @rabbita.none,
+      )
+    OpenTables => {
+      let next = {
+        ..model,
+        open_tabs: ensure_tab(model.open_tabs, tables_tab_id),
+        active_tab: tables_tab_id,
+      }
+      persist(next)
+      (next, @rabbita.none)
+    }
+    ImportTables =>
+      (
+        model,
+        @rabbita.perform(json => emit(TablesImported(json)), import_tables_task),
+      )
+    PrepareTableImport(doc_id) =>
+      if find_document(model.documents, doc_id) is Some(_) {
+        ({ ..model, import_doc_id: doc_id, }, @rabbita.none)
+      } else {
+        (model, @rabbita.none)
+      }
+    TablesImported(json) => {
+      let imported = parse_tables(json)
+      let target = import_target_id(model)
+      if imported.is_empty() || target == "" {
+        ({ ..model, import_doc_id: "", }, @rabbita.none)
+      } else {
+        let mut row_split = false
+        let mut column_split = false
+        let mut split_parts = 0
+        let mut long_cells = 0
+        for table in imported {
+          if table.split {
+            split_parts = split_parts + 1
+          }
+          if table.row_split {
+            row_split = true
+          }
+          if table.column_split {
+            column_split = true
+          }
+          long_cells = long_cells + table.long_cells
+        }
+        let library = library_for_document(model, target)
+        let tables = merge_tables(library.tables, imported)
+        let messages : Array[String] = []
+        if row_split && column_split {
+          messages.push(
+            tr(
+              model.lang,
+              "Table too large and too wide — split into ",
+              "表格过大且列数过多，已拆分为 ",
+            ) +
+            split_parts.to_string() +
+            tr(model.lang, " tables.", " 个表。"),
+          )
+        } else if column_split {
+          messages.push(
+            tr(model.lang, "Table too wide — split into ", "表格列数过多，已拆分为 ") +
+            split_parts.to_string() +
+            tr(model.lang, " tables.", " 个表。"),
+          )
+        } else if row_split {
+          messages.push(
+            tr(model.lang, "Table too large — split into ", "表格过大，已拆分为 ") +
+            split_parts.to_string() +
+            tr(model.lang, " tables.", " 个表。"),
+          )
+        }
+        if long_cells == 1 {
+          messages.push(
+            tr(
+              model.lang,
+              "1 cell was truncated to 60 characters.",
+              "1 个单元格已截断为 60 个字符。",
+            ),
+          )
+        } else if long_cells > 1 {
+          messages.push(
+            long_cells.to_string() +
+            tr(
+              model.lang,
+              " cells were truncated to 60 characters.",
+              " 个单元格已截断为 60 个字符。",
+            ),
+          )
+        }
+        let table_notice = messages.join("\n")
+        let next = commit_library(
+          model,
+          target,
+          { ..library, tables },
+        )
+        let next = {
+          ..next,
+          import_doc_id: "",
+          table_notice,
+          open_tabs: ensure_tab(model.open_tabs, tables_tab_id),
+          active_tab: tables_tab_id,
+        }
+        persist(next)
+        (next, @rabbita.none)
+      }
+    }
+    InsertTable(doc_id, id) =>
+      match find_document(model.documents, doc_id) {
+        None => (model, @rabbita.none)
+        Some(document) => {
+          let library = library_for_document(model, doc_id)
+          match find_table(library.tables, id) {
+            None => (model, @rabbita.none)
+            Some(table) => {
+              let markup = table_markup(table.name)
+              let inserted = insert_at_cursor(markup)
+              let source = if inserted == "" {
+                document.source + markup
+              } else {
+                inserted
+              }
+              let base = {
+                ..model,
+                documents: with_document_source(
+                  model.documents,
+                  doc_id,
+                  source,
+                ),
+                open_tabs: ensure_tab(model.open_tabs, doc_id),
+                active_tab: doc_id,
+              }
+              let next = if model.library_doc_id != doc_id {
+                switch_library(base, doc_id)
+              } else {
+                base
+              }
+              persist(next)
+              (next, @rabbita.none)
+            }
+          }
+        }
+      }
+    DeleteTable(doc_id, id) => {
+      if find_document(model.documents, doc_id) is None {
+        (model, @rabbita.none)
+      } else {
+        let library = library_for_document(model, doc_id)
+        let tables = remove_table(library.tables, id)
+        let next = commit_library(model, doc_id, { ..library, tables })
+        let next = if model.preview_kind is TablePreview &&
+          model.preview_item_id == id {
+          {
+            ..next,
+            preview_kind: NoPreview,
+            preview_doc_id: "",
+            preview_item_id: "",
+            table_draft: "",
+          }
+        } else {
+          next
+        }
+        (next, @rabbita.none)
+      }
+    }
+    OpenTablePreview(doc_id, id) =>
+      if find_document(model.documents, doc_id) is Some(_) {
+        match find_table(library_for_document(model, doc_id).tables, id) {
+          Some(table) => {
+            let limited = @render.csv_limit_table(table.csv, 5, 60)
+            let base = {
+              ..model,
+              open_tabs: ensure_tab(model.open_tabs, tables_tab_id),
+              active_tab: tables_tab_id,
+              preview_kind: TablePreview,
+              preview_doc_id: doc_id,
+              preview_item_id: id,
+              table_draft: limited,
+            }
+            let next = if limited == table.csv {
+              base
+            } else {
+              commit_table_draft(base)
+            }
+            (next, @rabbita.none)
+          }
+          None => (model, @rabbita.none)
+        }
+      } else {
+        (model, @rabbita.none)
+      }
+    EditTableCell(row_index, column_index, value) =>
+      if model.preview_kind is TablePreview {
+        let next = {
+          ..model,
+          table_draft: @render.csv_set_cell(
+            model.table_draft,
+            row_index,
+            column_index,
+            truncate_text(value, 60),
+          ),
+        }
+        let next = commit_table_draft(next)
+        (next, @rabbita.none)
+      } else {
+        (model, @rabbita.none)
+      }
+    AddTableRow =>
+      if model.preview_kind is TablePreview {
+        let (rows, _) = @render.csv_dimensions(model.table_draft)
+        if rows >= 200 {
+          (model, @rabbita.none)
+        } else {
+          let next = {
+            ..model,
+            table_draft: @render.csv_append_row(model.table_draft),
+          }
+          let next = commit_table_draft(next)
+          (next, @rabbita.none)
+        }
+      } else {
+        (model, @rabbita.none)
+      }
+    AddTableColumn =>
+      if model.preview_kind is TablePreview {
+        let (_, columns) = @render.csv_dimensions(model.table_draft)
+        if columns >= 5 {
+          (model, @rabbita.none)
+        } else {
+          let name = tr(model.lang, "Column ", "列 ") + (columns + 1).to_string()
+          let next = {
+            ..model,
+            table_draft: @render.csv_append_column(model.table_draft, name),
+          }
+          let next = commit_table_draft(next)
+          (next, @rabbita.none)
+        }
+      } else {
+        (model, @rabbita.none)
+      }
+    DismissTableNotice => ({ ..model, table_notice: "", }, @rabbita.none)
+    RequestDeleteDocument(id) =>
+      if find_document(model.documents, id) is Some(_) {
+        ({ ..model, pending_delete_doc_id: id, }, @rabbita.none)
+      } else {
+        (model, @rabbita.none)
+      }
+    CancelDeleteDocument =>
+      ({ ..model, pending_delete_doc_id: "", }, @rabbita.none)
+    DeleteDocument(id) => {
         let documents : Array[EmailDoc] = []
         for document in model.documents {
           if document.id != id {
@@ -533,17 +851,48 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
         } else {
           model.style_doc_id
         }
-        let next = {
+        delete_library(id)
+        let base = {
           ..model,
           documents,
           open_tabs,
           active_tab,
           style_doc_id,
         }
+        let next = if id == model.library_doc_id {
+          let context = if active_tab != "" &&
+            find_document(documents, active_tab) is Some(_) {
+            active_tab
+          } else {
+            first_open_document_id(open_tabs, documents)
+          }
+          if context == "" {
+            clear_library_model(base)
+          } else {
+            load_library_model(base, context)
+          }
+        } else if active_tab != model.active_tab &&
+          find_document(documents, active_tab) is Some(_) &&
+          active_tab != model.library_doc_id {
+          switch_library(base, active_tab)
+        } else {
+          base
+        }
+        let next = if model.preview_doc_id == id {
+          {
+            ..next,
+            preview_kind: NoPreview,
+            preview_doc_id: "",
+            preview_item_id: "",
+            pending_delete_doc_id: "",
+          }
+        } else if model.pending_delete_doc_id == id {
+          { ..next, pending_delete_doc_id: "", }
+        } else {
+          next
+        }
         persist(next)
         (next, @rabbita.none)
-      } else {
-        (model, @rabbita.none)
       }
     ToggleLanguage => {
       let lang = other_lang(model.lang)
@@ -619,6 +968,14 @@ fn icon_image() -> Html {
     @svg.rect(x=4, y=5, width=16, height=14, rx=2),
     @svg.circle(cx=9, cy=10, r=1),
     @svg.path(d="M4 17l4.5-4.5 3.5 3 3-2.5L20 18"),
+  ])
+}
+
+///|
+fn icon_table() -> Html {
+  icon_svg([
+    @svg.rect(x=4, y=5, width=16, height=14, rx=2),
+    @svg.path(d="M4 10h16M4 14.5h16M9.5 5v14M14.5 5v14"),
   ])
 }
 
@@ -728,6 +1085,7 @@ fn titlebar(emit : Emit[Msg], model : Model) -> Html {
 fn activity_bar(emit : Emit[Msg], model : Model) -> Html {
   let profile_active = model.active_tab == profile_tab_id
   let images_active = model.active_tab == images_tab_id
+  let tables_active = model.active_tab == tables_tab_id
   let styles_active = model.active_tab == styles_tab_id
   div(class="sigil-activitybar", [
     div(class="sigil-activity-group", [
@@ -773,6 +1131,17 @@ fn activity_bar(emit : Emit[Msg], model : Model) -> Html {
       ),
       button(
         type_="button",
+        class=if tables_active {
+          "sigil-activity-button is-active"
+        } else {
+          "sigil-activity-button"
+        },
+        title=tr(model.lang, "Tables", "表格"),
+        on_click=emit(OpenTables),
+        [icon_table()],
+      ),
+      button(
+        type_="button",
         class=if styles_active {
           "sigil-activity-button is-active"
         } else {
@@ -803,6 +1172,8 @@ fn tab_title(model : Model, id : String) -> String {
     tr(model.lang, "Profile", "个人资料")
   } else if id == images_tab_id {
     tr(model.lang, "Images", "图片")
+  } else if id == tables_tab_id {
+    tr(model.lang, "Tables", "表格")
   } else if id == settings_tab_id {
     tr(model.lang, "Settings", "设置")
   } else if id == styles_tab_id {
@@ -821,6 +1192,8 @@ fn tab_dot_class(id : String) -> String {
     "sigil-tab-dot is-profile"
   } else if id == images_tab_id {
     "sigil-tab-dot is-image"
+  } else if id == tables_tab_id {
+    "sigil-tab-dot is-table"
   } else if id == settings_tab_id {
     "sigil-tab-dot is-settings"
   } else if id == styles_tab_id {
@@ -866,53 +1239,43 @@ fn tabbar(emit : Emit[Msg], model : Model) -> Html {
 }
 
 ///|
-fn folder_label(lang : Lang, path : String) -> String {
-  if path == "" {
-    tr(lang, "Workspace", "工作区")
-  } else {
-    folder_leaf(path)
+fn library_context_title(model : Model) -> String {
+  match find_document(model.documents, model.library_doc_id) {
+    Some(document) => document.title
+    None => tr(model.lang, "No email", "无邮件")
   }
 }
 
 ///|
-fn folder_asset_count(model : Model, folder : String) -> Int32 {
-  assets_in_folder(model.assets, folder).length()
-}
-
-///|
-fn folder_row(emit : Emit[Msg], model : Model, path : String) -> Html {
-  let selected = model.image_folder == path
-  let indent = (7 + folder_depth(path) * 12).to_string()
-  button(
-    type_="button",
-    class=if selected {
-      "sigil-folder-row is-active"
-    } else {
-      "sigil-folder-row"
-    },
-    title=if path == "" {
-      tr(model.lang, "Workspace root", "工作区根目录")
-    } else {
-      path
-    },
-    style=["padding-left:" + indent + "px"],
-    on_click=emit(SelectFolder(path)),
-    [
-      span(class="sigil-folder-name", folder_label(model.lang, path)),
-      span(
-        class="sigil-folder-count",
-        folder_asset_count(model, path).to_string(),
-      ),
-    ],
-  )
-}
-
-///|
-fn folder_rows(emit : Emit[Msg], model : Model) -> Array[Html] {
+fn sidebar_table_rows(emit : Emit[Msg], model : Model) -> Array[Html] {
   let rows : Array[Html] = []
-  rows.push(folder_row(emit, model, ""))
-  for folder in model.folders {
-    rows.push(folder_row(emit, model, folder))
+  for table in model.tables {
+    let (row_count, column_count) = @render.csv_dimensions(table.csv)
+    rows.push(
+      div(class="sigil-side-table-row", [
+        button(
+          type_="button",
+          class="sigil-side-table-open",
+          title=tr(model.lang, "Preview ", "预览 ") + table.name,
+          on_click=emit(OpenTablePreview(model.library_doc_id, table.id)),
+          [
+            icon_table(),
+            span(class="sigil-side-table-name", table.name),
+            span(
+              class="sigil-side-table-meta",
+              row_count.to_string() + "×" + column_count.to_string(),
+            ),
+          ],
+        ),
+        button(
+          type_="button",
+          class="sigil-side-table-insert",
+          title=tr(model.lang, "Insert table", "插入表格"),
+          on_click=emit(InsertTable(model.library_doc_id, table.id)),
+          [span("+")],
+        ),
+      ]),
+    )
   }
   rows
 }
@@ -942,35 +1305,66 @@ fn sidebar(emit : Emit[Msg], model : Model) -> Html {
             type_="button",
             class="sigil-doc-delete",
             title=tr(model.lang, "Delete email", "删除邮件"),
-            on_click=emit(DeleteDocument(document.id)),
+            on_click=emit(RequestDeleteDocument(document.id)),
             [span("×")],
           ),
         ],
       ),
     )
+    if model.pending_delete_doc_id == document.id {
+      documents.push(
+        div(class="sigil-doc-confirm", [
+          span(
+            class="sigil-doc-confirm-text",
+            tr(model.lang, "Delete this email?", "删除这封邮件？"),
+          ),
+          button(
+            type_="button",
+            class="sigil-button is-small is-danger",
+            on_click=emit(DeleteDocument(document.id)),
+            tr(model.lang, "Delete", "删除"),
+          ),
+          button(
+            type_="button",
+            class="sigil-button is-small",
+            on_click=emit(CancelDeleteDocument),
+            tr(model.lang, "Cancel", "取消"),
+          ),
+        ]),
+      )
+    }
   }
   let thumbs : Array[Html] = []
-  for asset in assets_in_folder(model.assets, model.image_folder) {
+  for asset in model.assets {
     thumbs.push(
-      button(
-        type_="button",
-        class="sigil-side-thumb",
-        title=tr(model.lang, "Insert ", "插入 ") + asset.name,
-        on_click=emit(InsertAsset(asset.id)),
-        [
-          img(
-            src=asset.data_url,
-            alt=asset.name,
-            class="sigil-side-thumb-image",
-          ),
-        ],
-      ),
+      div(class="sigil-side-thumb-item", [
+        button(
+          type_="button",
+          class="sigil-side-thumb",
+          title=tr(model.lang, "Preview ", "预览 ") + asset.name,
+          on_click=emit(OpenImagePreview(model.library_doc_id, asset.id)),
+          [
+            img(
+              src=asset.data_url,
+              alt=asset.name,
+              class="sigil-side-thumb-image",
+            ),
+          ],
+        ),
+        button(
+          type_="button",
+          class="sigil-side-thumb-insert",
+          title=tr(model.lang, "Insert image", "插入图片"),
+          on_click=emit(InsertAsset(model.library_doc_id, asset.id)),
+          [span("+")],
+        ),
+      ]),
     )
   }
   let image_content = if thumbs.is_empty() {
     div(
       class="sigil-sidebar-empty",
-      tr(model.lang, "No images in this folder.", "此文件夹暂无图片。"),
+      tr(model.lang, "No images yet.", "暂无图片。"),
     )
   } else {
     div(class="sigil-side-thumbs", thumbs)
@@ -989,6 +1383,13 @@ fn sidebar(emit : Emit[Msg], model : Model) -> Html {
         [span(tr(model.lang, "+ New", "+ 新建"))],
       ),
     ]),
+    div(class="sigil-sidebar-context", [
+      span(
+        class="sigil-sidebar-context-label",
+        tr(model.lang, "Email", "邮件"),
+      ),
+      span(class="sigil-sidebar-context-name", library_context_title(model)),
+    ]),
     div(class="sigil-sidebar-section", [
       div(class="sigil-sidebar-title", [
         span(tr(model.lang, "Documents", "文档")),
@@ -1000,16 +1401,32 @@ fn sidebar(emit : Emit[Msg], model : Model) -> Html {
       div(class="sigil-sidebar-title", [
         span(tr(model.lang, "Images", "图片")),
         import_images_button(
+          emit,
+          model.library_doc_id,
           "sigil-sidebar-action",
           tr(model.lang, "Import", "导入"),
         ),
       ]),
-      div(class="sigil-folder-list", folder_rows(emit, model)),
-      div(
-        class="sigil-sidebar-folder-label",
-        folder_label(model.lang, model.image_folder),
-      ),
       image_content,
+    ]),
+    div(class="sigil-sidebar-section sigil-sidebar-images", [
+      div(class="sigil-sidebar-title", [
+        span(tr(model.lang, "Tables", "表格")),
+        import_tables_button(
+          emit,
+          model.library_doc_id,
+          "sigil-sidebar-action",
+          tr(model.lang, "Import", "导入"),
+        ),
+      ]),
+      if model.tables.is_empty() {
+        div(
+          class="sigil-sidebar-empty",
+          tr(model.lang, "No tables yet.", "暂无表格。"),
+        )
+      } else {
+        div(class="sigil-side-table-list", sidebar_table_rows(emit, model))
+      },
     ]),
   ])
 }
@@ -1128,10 +1545,11 @@ fn compose_workspace(
   document : EmailDoc,
 ) -> Html {
   let result = @parser.parse(document.source)
-  let preview_html = @render.render_email_html(
+  let preview_html = @render.render_email_html_with_tables(
     result.document,
     to_core_profile(model.profile),
     asset_map(model.assets),
+    table_map(model.tables),
   )
   div(class="sigil-workspace", [
     editor_pane(emit, model, document, result.diagnostics),
@@ -1361,13 +1779,19 @@ fn profile_tab(emit : Emit[Msg], model : Model) -> Html {
 }
 
 ///|
-fn import_images_button(class : String, label : String) -> Html {
+fn import_images_button(
+  emit : Emit[Msg],
+  doc_id : String,
+  class : String,
+  label : String,
+) -> Html {
   button(
     type_="button",
     class~,
     attrs=@html.Attrs::build().on_click(_ => {
+      let command = emit(PrepareImageImport(doc_id))
       open_image_picker()
-      @rabbita.none
+      command
     }),
     [span(label)],
   )
@@ -1386,105 +1810,155 @@ fn image_picker(emit : Emit[Msg]) -> Html {
 }
 
 ///|
-fn folder_select(emit : Emit[Msg], model : Model, asset : ImageAsset) -> Html {
-  let options : Array[Html] = []
-  options.push(
-    option(value="", selected=asset.folder == "", folder_label(model.lang, "")),
-  )
-  for folder in model.folders {
-    options.push(
-      option(value=folder, selected=asset.folder == folder, folder_leaf(folder)),
-    )
-  }
-  select(
-    class="sigil-folder-select",
-    title=tr(model.lang, "Move image to folder", "移动到文件夹"),
-    on_change=emit.map(folder => MoveAsset(asset.id, folder)),
-    options,
+fn table_picker(emit : Emit[Msg]) -> Html {
+  input(
+    input_type=@html.InputType::File,
+    id="sigil-table-input",
+    multiple=true,
+    accept=".csv,.tsv,.xlsx,.xls,.ods,.json",
+    class="sigil-file-input",
+    on_change=emit.map(_ => ImportTables),
   )
 }
 
 ///|
-fn images_tab(emit : Emit[Msg], model : Model) -> Html {
-  let cards : Array[Html] = []
-  for asset in assets_in_folder(model.assets, model.image_folder) {
-    cards.push(
-      div(class="sigil-asset-card", [
-        img(src=asset.data_url, alt=asset.name, class="sigil-asset-image"),
-        div(class="sigil-asset-meta", [
-          span(class="sigil-asset-name", asset.name),
-          folder_select(emit, model, asset),
-          div(class="sigil-asset-actions", [
-            button(
-              type_="button",
-              class="sigil-button is-small",
-              on_click=emit(InsertAsset(asset.id)),
-              tr(model.lang, "Insert", "插入"),
-            ),
-            button(
-              type_="button",
-              class="sigil-button is-small is-danger",
-              on_click=emit(DeleteAsset(asset.id)),
-              tr(model.lang, "Remove", "删除"),
-            ),
-          ]),
-        ]),
-      ]),
-    )
-  }
-  let content = if cards.is_empty() {
-    div(class="sigil-assets-empty", [
-      span(
-        class="sigil-assets-empty-title",
-        tr(model.lang, "No images in this folder", "此文件夹暂无图片"),
-      ),
-      span(
-        class="sigil-assets-empty-text",
-        tr(
-          model.lang,
-          "Import images here, or move existing ones with each card's folder menu.",
-          "在这里导入图片，或用卡片上的文件夹菜单移动现有图片。",
+fn image_card(
+  emit : Emit[Msg],
+  model : Model,
+  doc_id : String,
+  asset : ImageAsset,
+) -> Html {
+  div(class="sigil-asset-card", [
+    img(src=asset.data_url, alt=asset.name, class="sigil-asset-image"),
+    div(class="sigil-asset-meta", [
+      span(class="sigil-asset-name", asset.name),
+      div(class="sigil-asset-actions", [
+        button(
+          type_="button",
+          class="sigil-button is-small",
+          on_click=emit(OpenImagePreview(doc_id, asset.id)),
+          tr(model.lang, "Preview", "预览"),
         ),
+        button(
+          type_="button",
+          class="sigil-button is-small is-danger",
+          on_click=emit(DeleteAsset(doc_id, asset.id)),
+          tr(model.lang, "Remove", "删除"),
+        ),
+      ]),
+    ]),
+  ])
+}
+
+///|
+enum LibraryKind {
+  ImageLibrary
+  TableLibrary
+}
+
+///|
+fn library_group_header(
+  emit : Emit[Msg],
+  model : Model,
+  document : EmailDoc,
+  count : Int32,
+  kind : LibraryKind,
+) -> Html {
+  let import_button = match kind {
+    ImageLibrary =>
+      import_images_button(
+        emit,
+        document.id,
+        "sigil-sidebar-action",
+        tr(model.lang, "Import", "导入"),
+      )
+    TableLibrary =>
+      import_tables_button(
+        emit,
+        document.id,
+        "sigil-sidebar-action",
+        tr(model.lang, "Import", "导入"),
+      )
+  }
+  div(class="sigil-library-group-header", [
+    div(class="sigil-library-group-title", [
+      span(class="sigil-library-group-name", document.title),
+      if document.id == model.library_doc_id {
+        span(class="sigil-library-current", tr(model.lang, "Current", "当前"))
+      } else {
+        @html.nothing
+      },
+      span(
+        class="sigil-library-group-count",
+        count.to_string() +
+        (if kind is ImageLibrary {
+          (if count == 1 {
+            tr(model.lang, " image", " 张图片")
+          } else {
+            tr(model.lang, " images", " 张图片")
+          })
+        } else if count == 1 {
+          tr(model.lang, " table", " 个表格")
+        } else {
+          tr(model.lang, " tables", " 个表格")
+        }),
       ),
-    ])
+    ]),
+    import_button,
+  ])
+}
+
+///|
+fn image_group(
+  emit : Emit[Msg],
+  model : Model,
+  document : EmailDoc,
+) -> Html {
+  let library = library_for_document(model, document.id)
+  let cards : Array[Html] = []
+  for asset in library.images {
+    cards.push(image_card(emit, model, document.id, asset))
+  }
+  let body = if cards.is_empty() {
+    div(
+      class="sigil-library-empty",
+      tr(model.lang, "No images yet.", "暂无图片。"),
+    )
   } else {
     div(class="sigil-asset-grid", cards)
   }
-  let folder_create = if model.creating_folder {
-    div(class="sigil-folder-create", [
-      input(
-        class="sigil-field-input sigil-folder-input",
-        value=model.folder_draft,
-        placeholder=tr(model.lang, "Folder name", "文件夹名称"),
-        on_input=emit.map(value => FolderDraftChanged(value)),
-      ),
-      button(
-        type_="button",
-        class="sigil-button is-small is-primary",
-        on_click=emit(CreateFolder),
-        tr(model.lang, "Create", "创建"),
-      ),
-      button(
-        type_="button",
-        class="sigil-button is-small",
-        on_click=emit(ToggleNewFolder),
-        tr(model.lang, "Cancel", "取消"),
-      ),
-      span(
-        class="sigil-folder-create-hint",
-        tr(model.lang, "Created inside ", "创建于 ") +
-        folder_label(model.lang, model.image_folder),
-      ),
-    ])
+  div(class="sigil-library-group", [
+    library_group_header(
+      emit,
+      model,
+      document,
+      library.images.length(),
+      ImageLibrary,
+    ),
+    body,
+  ])
+}
+
+///|
+fn images_tab(emit : Emit[Msg], model : Model) -> Html {
+  let groups : Array[Html] = []
+  for document in model.documents {
+    groups.push(image_group(emit, model, document))
+  }
+  let content = if groups.is_empty() {
+    div(
+      class="sigil-assets-empty",
+      tr(model.lang, "Create an email to add images.", "新建邮件后可添加图片。"),
+    )
   } else {
-    @html.nothing
+    div(class="sigil-library-groups", groups)
   }
   div(class="sigil-images-tab", [
     div(class="sigil-images-header", [
       div(class="sigil-images-heading", [
         span(
           class="sigil-profile-kicker",
-          tr(model.lang, "Workspace / Images", "工作区 / 图片"),
+          tr(model.lang, "Libraries / Images", "资源库 / 图片"),
         ),
         span(
           class="sigil-profile-title",
@@ -1494,48 +1968,179 @@ fn images_tab(emit : Emit[Msg], model : Model) -> Html {
           class="sigil-profile-subtitle",
           tr(
             model.lang,
-            "Organized in workspace folders. Insert one as <image:name>.",
-            "按工作区文件夹组织，插入为 <image:name> 标记。",
+            "Images are grouped by the email they belong to.",
+            "图片按所属邮件分组展示。",
           ),
-        ),
-      ]),
-      div(class="sigil-images-actions", [
-        button(
-          type_="button",
-          class="sigil-button",
-          on_click=emit(ToggleNewFolder),
-          tr(model.lang, "New folder", "新建文件夹"),
-        ),
-        import_images_button(
-          "sigil-button is-primary",
-          tr(model.lang, "Import images", "导入图片"),
         ),
       ]),
     ]),
-    folder_create,
-    div(class="sigil-images-body", [
-      div(class="sigil-folder-tree", [
-        div(
-          class="sigil-folder-tree-title",
-          tr(model.lang, "Folders", "文件夹"),
+    content,
+  ])
+}
+
+///|
+fn import_tables_button(
+  emit : Emit[Msg],
+  doc_id : String,
+  class : String,
+  label : String,
+) -> Html {
+  button(
+    type_="button",
+    class~,
+    attrs=@html.Attrs::build().on_click(_ => {
+      let command = emit(PrepareTableImport(doc_id))
+      open_table_picker()
+      command
+    }),
+    [span(label)],
+  )
+}
+
+///|
+fn table_preview(csv : String) -> Html {
+  let preview = @render.csv_preview(csv, 3, 4)
+  let rows : Array[Html] = []
+  let mut row_index = 0
+  for row in preview {
+    let cells : Array[Html] = []
+    for cell in row {
+      cells.push(span(class="sigil-table-mini-cell", cell))
+    }
+    rows.push(
+      div(
+        class=if row_index == 0 {
+          "sigil-table-mini-row is-header"
+        } else {
+          "sigil-table-mini-row"
+        },
+        cells,
+      ),
+    )
+    row_index = row_index + 1
+  }
+  div(class="sigil-table-mini", rows)
+}
+
+///|
+fn table_card(
+  emit : Emit[Msg],
+  model : Model,
+  doc_id : String,
+  table : TableAsset,
+) -> Html {
+  let (rows, columns) = @render.csv_dimensions(table.csv)
+  div(class="sigil-table-card", [
+    table_preview(table.csv),
+    div(class="sigil-table-card-main", [
+      span(class="sigil-table-name", table.name),
+      span(
+        class="sigil-table-meta",
+        rows.to_string() +
+        tr(model.lang, " rows × ", " 行 × ") +
+        columns.to_string() +
+        tr(model.lang, " cols", " 列"),
+      ),
+    ]),
+    div(class="sigil-table-actions", [
+      button(
+        type_="button",
+        class="sigil-button is-small",
+        on_click=emit(OpenTablePreview(doc_id, table.id)),
+        tr(model.lang, "Preview", "预览"),
+      ),
+      button(
+        type_="button",
+        class="sigil-button is-small is-danger",
+        on_click=emit(DeleteTable(doc_id, table.id)),
+        tr(model.lang, "Remove", "删除"),
+      ),
+    ]),
+  ])
+}
+
+///|
+fn table_group(
+  emit : Emit[Msg],
+  model : Model,
+  document : EmailDoc,
+) -> Html {
+  let library = library_for_document(model, document.id)
+  let cards : Array[Html] = []
+  for table in library.tables {
+    cards.push(table_card(emit, model, document.id, table))
+  }
+  let body = if cards.is_empty() {
+    div(
+      class="sigil-library-empty",
+      tr(model.lang, "No tables yet.", "暂无表格。"),
+    )
+  } else {
+    div(class="sigil-table-grid", cards)
+  }
+  div(class="sigil-library-group", [
+    library_group_header(
+      emit,
+      model,
+      document,
+      library.tables.length(),
+      TableLibrary,
+    ),
+    body,
+  ])
+}
+
+///|
+fn tables_tab(emit : Emit[Msg], model : Model) -> Html {
+  let groups : Array[Html] = []
+  for document in model.documents {
+    groups.push(table_group(emit, model, document))
+  }
+  let content = if groups.is_empty() {
+    div(
+      class="sigil-assets-empty",
+      tr(model.lang, "Create an email to add tables.", "新建邮件后可添加表格。"),
+    )
+  } else {
+    div(class="sigil-library-groups", groups)
+  }
+  let notice = if model.table_notice == "" {
+    @html.nothing
+  } else {
+    div(class="sigil-table-notice", [
+      span(class="sigil-table-notice-text", model.table_notice),
+      button(
+        type_="button",
+        class="sigil-table-notice-close",
+        title=tr(model.lang, "Dismiss", "关闭"),
+        on_click=emit(DismissTableNotice),
+        [span("×")],
+      ),
+    ])
+  }
+  div(class="sigil-tables-tab", [
+    div(class="sigil-images-header", [
+      div(class="sigil-images-heading", [
+        span(
+          class="sigil-profile-kicker",
+          tr(model.lang, "Libraries / Tables", "资源库 / 表格"),
         ),
-        div(class="sigil-folder-list", folder_rows(emit, model)),
-      ]),
-      div(class="sigil-images-content", [
-        div(class="sigil-folder-header", [
-          span(
-            class="sigil-folder-title",
-            folder_label(model.lang, model.image_folder),
+        span(
+          class="sigil-profile-title",
+          tr(model.lang, "Table library", "表格库"),
+        ),
+        span(
+          class="sigil-profile-subtitle",
+          tr(
+            model.lang,
+            "Tables are grouped by the email they belong to. Wide tables and long rows are split on import.",
+            "表格按所属邮件分组展示；过宽或过长的表格会在导入时拆分。",
           ),
-          span(
-            class="sigil-folder-subtitle",
-            folder_asset_count(model, model.image_folder).to_string() +
-            tr(model.lang, " images", " 张图片"),
-          ),
-        ]),
-        content,
+        ),
       ]),
     ]),
+    notice,
+    content,
   ])
 }
 
@@ -1902,10 +2507,17 @@ fn empty_workspace(emit : Emit[Msg], model : Model) -> Html {
 
 ///|
 fn main_content(emit : Emit[Msg], model : Model) -> Html {
-  if model.active_tab == profile_tab_id {
+  if model.active_tab == images_tab_id && model.preview_kind is ImagePreview {
+    preview_page(emit, model)
+  } else if model.active_tab == tables_tab_id &&
+    model.preview_kind is TablePreview {
+    preview_page(emit, model)
+  } else if model.active_tab == profile_tab_id {
     profile_tab(emit, model)
   } else if model.active_tab == images_tab_id {
     images_tab(emit, model)
+  } else if model.active_tab == tables_tab_id {
+    tables_tab(emit, model)
   } else if model.active_tab == settings_tab_id {
     settings_tab(emit, model)
   } else if model.active_tab == styles_tab_id {
@@ -1916,6 +2528,225 @@ fn main_content(emit : Emit[Msg], model : Model) -> Html {
       None => empty_workspace(emit, model)
     }
   }
+}
+
+///|
+fn preview_page(emit : Emit[Msg], model : Model) -> Html {
+  let document = find_document(model.documents, model.preview_doc_id)
+  let library = library_for_document(model, model.preview_doc_id)
+  let email_title = match document {
+    Some(value) => value.title
+    None => tr(model.lang, "Missing email", "找不到邮件")
+  }
+  let (title, subtitle, body) = match model.preview_kind {
+    NoPreview => (
+      "",
+      "",
+      div(class="sigil-preview-empty", tr(model.lang, "Nothing to preview.", "没有可预览的内容。")),
+    )
+    ImagePreview =>
+      match find_asset(library.images, model.preview_item_id) {
+        Some(asset) =>
+          (
+            asset.name,
+            email_title + " · " + tr(model.lang, "Image", "图片"),
+            div(class="sigil-inline-preview-body", [
+              img(
+                src=asset.data_url,
+                alt=asset.name,
+                class="sigil-inline-image",
+              ),
+            ]),
+          )
+        None =>
+          (
+            tr(model.lang, "Image", "图片"),
+            email_title,
+            div(
+              class="sigil-preview-empty",
+              tr(model.lang, "Image not found.", "找不到图片。"),
+            ),
+          )
+      }
+    TablePreview =>
+      match find_table(library.tables, model.preview_item_id) {
+        Some(table) => {
+          let draft = model.table_draft
+          let preview_rows = @render.csv_preview(draft, 400, 64)
+          let (row_count, column_count) = @render.csv_dimensions(draft)
+          let widths : Array[Int32] = []
+          let mut total_width = 0
+          let mut column_index = 0
+          while column_index < column_count {
+            let mut max_length = 6
+            for row in preview_rows {
+              if column_index < row.length() {
+                let length = row[column_index].length()
+                if length > max_length {
+                  max_length = length
+                }
+              }
+            }
+            let clamped = if max_length > 26 { 26 } else { max_length }
+            let width = (if clamped < 8 { 8 } else { clamped }) * 10 + 24
+            widths.push(width)
+            total_width = total_width + width
+            column_index = column_index + 1
+          }
+          let width_parts : Array[String] = []
+          for width in widths {
+            width_parts.push(width.to_string() + "px")
+          }
+          let grid_style = ["grid-template-columns:" + width_parts.join(" ")]
+          let can_add_column = column_count < 5
+          let can_add_row = row_count < 200
+          let row_blocks : Array[Html] = []
+          let mut row_index = 0
+          for row in preview_rows {
+            let row_cells : Array[Html] = []
+            let mut cell_index = 0
+            while cell_index < column_count {
+              let value = if cell_index < row.length() {
+                row[cell_index]
+              } else {
+                ""
+              }
+              let class_name = if row_index == 0 {
+                "sigil-table-editor-cell is-header"
+              } else {
+                "sigil-table-editor-cell"
+              }
+              let cell_row = row_index
+              let cell_column = cell_index
+              row_cells.push(
+                input(
+                  input_type=@html.InputType::Text,
+                  class=class_name,
+                  value~,
+                  maxlength=60,
+                  on_input=emit.map(text => EditTableCell(
+                    cell_row,
+                    cell_column,
+                    text,
+                  )),
+                ),
+              )
+              cell_index = cell_index + 1
+            }
+            let row_class = if row_index == 0 {
+              "sigil-table-editor-row is-header"
+            } else if row_index % 2 == 0 {
+              "sigil-table-editor-row is-alternate"
+            } else {
+              "sigil-table-editor-row"
+            }
+            row_blocks.push(div(class=row_class, style=grid_style, row_cells))
+            row_index = row_index + 1
+          }
+          let editor = if row_count == 0 {
+            div(
+              class="sigil-table-editor-empty",
+              tr(model.lang, "This table is empty. Add a row to begin.", "此表格为空，添加一行开始编辑。"),
+            )
+          } else {
+            div(class="sigil-table-editor-scroll", [
+              div(class="sigil-table-editor", row_blocks),
+            ])
+          }
+          let column_limit_hint = if can_add_column {
+            tr(model.lang, "Add a column", "添加一列")
+          } else {
+            tr(model.lang, "Maximum 5 columns", "最多 5 列")
+          }
+          let toolbar = div(class="sigil-table-editor-toolbar", [
+            div(class="sigil-table-editor-chips", [
+              span(
+                class="sigil-table-editor-chip",
+                column_count.to_string() +
+                " / 5" +
+                tr(model.lang, " columns", " 列"),
+              ),
+              span(
+                class="sigil-table-editor-chip",
+                total_width.to_string() + "px",
+              ),
+              span(
+                class="sigil-table-editor-chip",
+                tr(model.lang, "60 chars / cell", "每格 60 字符"),
+              ),
+            ]),
+            div(class="sigil-table-editor-controls", [
+              button(
+                type_="button",
+                class="sigil-button is-small",
+                title=tr(model.lang, "Add a row", "添加一行"),
+                disabled=!can_add_row,
+                on_click=emit(AddTableRow),
+                [span(tr(model.lang, "+ Row", "+ 行"))],
+              ),
+              button(
+                type_="button",
+                class="sigil-button is-small is-primary",
+                title=column_limit_hint,
+                disabled=!can_add_column,
+                on_click=emit(AddTableColumn),
+                [span(tr(model.lang, "+ Column", "+ 列"))],
+              ),
+            ]),
+          ])
+          let footer = div(class="sigil-table-editor-footer", [
+            span(class="sigil-table-editor-dot", ([] : Array[Html])),
+            span(
+              tr(
+                model.lang,
+                "Changes save automatically.",
+                "修改会自动保存。",
+              ),
+            ),
+          ])
+          let panel = div(class="sigil-table-editor-panel", [
+            toolbar,
+            editor,
+            footer,
+          ])
+          (
+            table.name,
+            email_title +
+            " · " +
+            row_count.to_string() +
+            "×" +
+            column_count.to_string(),
+            div(class="sigil-inline-preview-body is-table", [
+              div(class="sigil-table-editor-wrap", [panel]),
+            ]),
+          )
+        }
+        None =>
+          (
+            tr(model.lang, "Table", "表格"),
+            email_title,
+            div(
+              class="sigil-preview-empty",
+              tr(model.lang, "Table not found.", "找不到表格。"),
+            ),
+          )
+      }
+  }
+  div(class="sigil-inline-preview", [
+    div(class="sigil-inline-preview-bar", [
+      button(
+        type_="button",
+        class="sigil-inline-preview-back",
+        on_click=emit(ClosePreview),
+        [span(tr(model.lang, "← Back", "← 返回"))],
+      ),
+      div(class="sigil-inline-preview-heading", [
+        span(class="sigil-inline-preview-title", title),
+        span(class="sigil-inline-preview-subtitle", subtitle),
+      ]),
+    ]),
+    body,
+  ])
 }
 
 ///|
@@ -1942,6 +2773,10 @@ fn statusbar(model : Model) -> Html {
       span(
         class="sigil-status-item",
         tr(model.lang, "Images ", "图片 ") + model.assets.length().to_string(),
+      ),
+      span(
+        class="sigil-status-item",
+        tr(model.lang, "Tables ", "表格 ") + model.tables.length().to_string(),
       ),
       span(
         class="sigil-status-item",
@@ -1977,6 +2812,7 @@ fn view(emit : Emit[Msg], model : Model) -> Html {
   div(class=shell_class, style=shell_style, attrs=shell_attrs, [
     titlebar(emit, model),
     image_picker(emit),
+    table_picker(emit),
     avatar_picker(emit),
     div(class="sigil-body", [
       activity_bar(emit, model),

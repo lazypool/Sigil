@@ -275,6 +275,8 @@ fn highlight_inline(
           prefix_length = 5
         } else if tag.has_prefix("image:") {
           prefix_length = 6
+        } else if tag.has_prefix("table:") {
+          prefix_length = 6
         } else if tag.has_prefix("sig:") {
           prefix_length = 4
         }

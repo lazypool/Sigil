@@ -128,3 +128,18 @@ test "unclosed emphasis is a warning and stays literal" {
     _ => fail("expected paragraph")
   }
 }
+
+///|
+test "table insertion parses as a block" {
+  let result = @parser.parse("<table:report.csv>")
+  assert_eq(result.document.blocks.length(), 1)
+  assert_true(result.document.blocks[0] is Table("report.csv"))
+  assert_eq(result.diagnostics.length(), 0)
+}
+
+///|
+test "inline table insertion is an error" {
+  let result = @parser.parse("See <table:report.csv> above.")
+  assert_true(result.diagnostics.length() > 0)
+  assert_true(result.diagnostics[0].severity is Error)
+}

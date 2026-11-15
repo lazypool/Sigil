@@ -346,12 +346,14 @@ fn parse_inline_inner(
           }
           i = close + 1
           continue
-        } else if tag.has_prefix("image:") || tag.has_prefix("sig:") {
+        } else if tag.has_prefix("image:") ||
+          tag.has_prefix("sig:") ||
+          tag.has_prefix("table:") {
           if allow_block_tags {
             push_diagnostic(
               diagnostics,
               Error,
-              "Image and signature insertions must occupy their own line.",
+              "Image, signature, and table insertions must occupy their own line.",
               line,
             )
           }
@@ -364,7 +366,7 @@ fn parse_inline_inner(
             diagnostics,
             Error,
             if tag.contains(":") {
-              "Unknown insertion prefix. Use sig:, image:, icon:, or link:."
+              "Unknown insertion prefix. Use sig:, image:, table:, icon:, or link:."
             } else {
               "Insertions must carry an explicit prefix."
             },
@@ -523,6 +525,17 @@ pub fn parse(source : String) -> ParseResult {
         push_diagnostic(diagnostics, Error, "Image path is empty.", line_number)
       } else {
         blocks.push(Image(name))
+      }
+      i = i + 1
+      continue
+    }
+    if line.has_prefix("<table:") && line.has_suffix(">") {
+      flush_paragraph(paragraph, blocks, diagnostics, line_number)
+      let name = line[7:line.length() - 1].to_owned()
+      if name == "" {
+        push_diagnostic(diagnostics, Error, "Table file name is empty.", line_number)
+      } else {
+        blocks.push(Table(name))
       }
       i = i + 1
       continue

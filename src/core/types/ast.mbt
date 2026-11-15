@@ -35,6 +35,7 @@ pub(all) enum Block {
   Image(String)
   Signature(String)
   Formula(String)
+  Table(String)
   Chart(String, String)
   PlainText(String)
 }

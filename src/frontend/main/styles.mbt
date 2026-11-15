@@ -271,9 +271,11 @@ fn style_preview_source(target : EmailDoc) -> String {
 ///|
 fn style_preview_html(model : Model, target : EmailDoc) -> String {
   let result = @parser.parse(style_preview_source(target))
-  @render.render_email_html(
+  let library = library_for_document(model, target.id)
+  @render.render_email_html_with_tables(
     result.document,
     to_core_profile(model.profile),
-    asset_map(model.assets),
+    asset_map(library.images),
+    table_map(library.tables),
   )
 }

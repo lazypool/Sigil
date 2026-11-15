@@ -7,7 +7,7 @@
 
 ## 0. Design Principles
 
-1. **Minimal by default.** No multi-level headings, no rich text, no tables, no code blocks.
+1. **Minimal by default.** No multi-level headings, no rich text, no hand-written tables, no code blocks.
 2. **One theme color.** The entire email shares a single accent color; everything else is neutral gray.
 3. **Three text styles only.** `normal`, `strong` (same size, bold), `big` (bold, larger). No italics, underline, strikethrough, or multiple font sizes.
 4. **Fixed reading column.** Body content is capped at 640px wide, vertically stacked, compatible with all devices.
@@ -225,6 +225,7 @@ All insertions use `<>` and **must carry an explicit prefix**. An unprefixed `<>
 |---|---|---|---|
 | `sig:` | Signature | Block, must occupy its own line | `<sig:academic>` |
 | `image:` | Image | Block, must occupy its own line | `<image:product.png>` |
+| `table:` | Table | Block, must occupy its own line | `<table:report.csv>` |
 | `icon:` | Built-in icon | Inline | `<icon:mail>` |
 | `link:` | Hyperlink | Inline | `<link:https://a.com>` |
 
@@ -252,10 +253,52 @@ All insertions use `<>` and **must carry an explicit prefix**. An unprefixed `<>
 - **Must occupy its own line**; inline occurrence → error.
 - Renders as a block image: centered, `max-width:100%`, `height:auto`.
 - Local assets and remote URLs are both allowed. On send, both are downloaded and embedded via CID.
+- Local image assets belong to the email's own library. Switching emails switches
+  the sidebar image list, and deleting an email deletes its images.
 - The old `![]()` syntax → error, with a hint to use `<image:...>`.
 - v0.1 does not support alt text.
 
-#### 3.5.3 Icon `<icon:...>`
+#### 3.5.3 Table `<table:...>`
+
+```text
+<table:report.csv>
+```
+
+- **Must occupy its own line**; inline occurrence → error.
+- The target is a CSV asset in the workspace table library; the value is the
+  asset file name.
+- Imported CSV, TSV, XLSX, XLS, ODS, and JSON files are converted to CSV on
+  import. Only the first worksheet of a workbook is imported.
+- Each email owns its own image and table library. Both are flat lists with
+  no folders or categories.
+- The Images and Tables tabs group their contents by the owning email, so every
+  email's library can be browsed and edited from the same tab.
+- Library tabs provide an inline preview page for images and tables; they do
+  not insert assets.
+- In the sidebar, clicking an image or table opens its preview, while its `+`
+  button inserts it into the active email.
+- The workspace uses inline views and inline confirmations instead of modal
+  dialogs.
+- The table preview is an inline editor: cells are editable, rows and columns
+  can be added, column widths are derived from cell content, and adding a
+  column stops at the hard limit of 5 columns. Its background and controls use
+  the application theme.
+  Switching emails switches the whole sidebar resource directory; deleting an
+  email deletes its tables.
+- Tables have a hard limit of 5 columns. Wide tables (more than 5 columns) are
+  split into numbered parts; parts after the first repeat the first column as
+  a key. Tables with more than 200 data rows are also split by rows, repeating
+  the header in each part. The import reports how many tables were created.
+- Each cell is limited to 60 characters. Longer cells are truncated on import
+  and when older tables are normalized, and the import reports how many cells
+  were truncated.
+- The CSV is parsed with RFC 4180 quoting and rendered as an email-safe HTML
+  table with inline styles and no scripts.
+- Tables are centered in the reading column. Header cells use a light tint of
+  the theme color, and body rows alternate between white and `#F7F8FA`.
+- A missing asset renders a visible `[table:name]` placeholder.
+
+#### 3.5.4 Icon `<icon:...>`
 
 ```text
 <icon:mail>
@@ -266,7 +309,7 @@ All insertions use `<>` and **must carry an explicit prefix**. An unprefixed `<>
 - Only built-in icon whitelist entries are allowed; unknown icon → error.
 - Preview uses SVG; on send, converted to a theme-colored PNG.
 
-#### 3.5.4 Link `<link:...>`
+#### 3.5.5 Link `<link:...>`
 
 ```text
 <link:https://example.com>
@@ -283,7 +326,7 @@ All insertions use `<>` and **must carry an explicit prefix**. An unprefixed `<>
 - Links use the theme color only, **no underline**.
 - URLs must not contain spaces or `|`.
 
-#### 3.5.5 Security
+#### 3.5.6 Security
 
 - Source `<...>` constructs produce only controlled AST nodes; HTML output is always escaped.
 - Source `<...>` is never passed through as raw HTML.

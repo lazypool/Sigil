@@ -341,6 +341,7 @@ fn render_block(
   document : Document,
   profile : Profile,
   assets : Map[String, String],
+  tables : Map[String, String],
   accent : String,
 ) -> String {
   match block {
@@ -353,6 +354,7 @@ fn render_block(
     Image(name) => render_image(name, assets)
     Signature(theme) => render_signature(theme, profile, accent)
     Formula(text) => render_formula_html(text)
+    Table(name) => render_table(name, tables, accent)
     Chart(kind, text) =>
       "<div style=\"margin:18px 0;padding:12px 14px;border:1px solid #e5e5e5;border-radius:4px;background:#fafafa;\">" +
       "<div style=\"font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;\">" +
@@ -374,10 +376,22 @@ pub fn render_document(
   profile : Profile,
   assets : Map[String, String],
 ) -> String {
+  render_document_with_tables(document, profile, assets, Map([]))
+}
+
+///|
+pub fn render_document_with_tables(
+  document : Document,
+  profile : Profile,
+  assets : Map[String, String],
+  tables : Map[String, String],
+) -> String {
   let accent = theme_color(document)
   let builder = StringBuilder()
   for block in document.blocks {
-    builder.write_string(render_block(block, document, profile, assets, accent))
+    builder.write_string(
+      render_block(block, document, profile, assets, tables, accent),
+    )
   }
   builder.write_string(render_footer(document.footer, profile, accent))
   builder.to_string()
@@ -389,7 +403,17 @@ pub fn render_email_html(
   profile : Profile,
   assets : Map[String, String],
 ) -> String {
-  let body = render_document(document, profile, assets)
+  render_email_html_with_tables(document, profile, assets, Map([]))
+}
+
+///|
+pub fn render_email_html_with_tables(
+  document : Document,
+  profile : Profile,
+  assets : Map[String, String],
+  tables : Map[String, String],
+) -> String {
+  let body = render_document_with_tables(document, profile, assets, tables)
   let accent = theme_color(document)
   let letter = match document.letter {
     Some(letter) => letter
