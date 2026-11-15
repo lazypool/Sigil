@@ -55,6 +55,17 @@ struct Model {
   prefs : Prefs
   style_view : StyleKind
   style_doc_id : String
+  mail : MailForm
+  mail_notice : String
+  mail_notice_ok : Bool
+  mail_advanced_open : Bool
+  mail_test_to : String
+  send_open : Bool
+  send_to : String
+  send_subject : String
+  send_busy : Bool
+  send_notice : String
+  send_notice_ok : Bool
 }
 
 ///|
@@ -123,6 +134,22 @@ enum Msg {
   OpenStyles
   SelectStyleKind(StyleKind)
   ApplyStyle(String)
+  OpenSend
+  CloseSend
+  SendToChanged(String)
+  SendSubjectChanged(String)
+  BeginSend
+  SendFinished(String)
+  OpenDeliverySettings
+  MailLoaded(String)
+  MailFieldChanged(MailField, String)
+  SaveMailSettings
+  MailSaved(String)
+  TestMailSettings
+  MailTested(String)
+  MailTestToChanged(String)
+  ToggleMailAdvanced
+  CopyMailHelpLink
 }
 
 ///|
@@ -186,6 +213,17 @@ fn initial_model() -> Model {
     prefs: load_prefs(),
     style_view: LetterStyle,
     style_doc_id,
+    mail: default_mail_form(),
+    mail_notice: "",
+    mail_notice_ok: false,
+    mail_advanced_open: false,
+    mail_test_to: "",
+    send_open: false,
+    send_to: "",
+    send_subject: "",
+    send_busy: false,
+    send_notice: "",
+    send_notice_ok: false,
   }
 }
 
@@ -428,7 +466,259 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
         active_tab: settings_tab_id,
       }
       persist(next)
-      (next, @rabbita.none)
+      (
+        next,
+        @rabbita.perform(data => emit(MailLoaded(data)), load_mail_task),
+      )
+    }
+    OpenSend => {
+      let subject = match active_document(model) {
+        Some(document) => document.title
+        None => ""
+      }
+      let next = {
+        ..model,
+        send_open: true,
+        send_subject: subject,
+        send_notice: "",
+        send_notice_ok: false,
+        send_busy: false,
+      }
+      (
+        next,
+        @rabbita.perform(data => emit(MailLoaded(data)), load_mail_task),
+      )
+    }
+    CloseSend => (
+      {
+        ..model,
+        send_open: false,
+        send_busy: false,
+        send_notice: "",
+        send_notice_ok: false,
+      },
+      @rabbita.none,
+    )
+    SendToChanged(value) => ({ ..model, send_to: value, }, @rabbita.none)
+    SendSubjectChanged(value) =>
+      ({ ..model, send_subject: value, }, @rabbita.none)
+    BeginSend =>
+      match active_document(model) {
+        None => (model, @rabbita.none)
+        Some(document) => {
+          let recipients = parse_recipients(model.send_to)
+          let subject = model.send_subject.trim().to_owned()
+          let result = @parser.parse(document.source)
+          let mut has_errors = false
+          for diagnostic in result.diagnostics {
+            if diagnostic.severity is @types.Error {
+              has_errors = true
+            }
+          }
+          let notice = if recipients is None {
+            tr(
+              model.lang,
+              "Add at least one valid recipient.",
+              "请填写至少一个有效收件人。",
+            )
+          } else if subject == "" {
+            tr(model.lang, "Add a subject.", "请填写邮件主题。")
+          } else if has_errors {
+            tr(
+              model.lang,
+              "Fix the errors in this email before sending.",
+              "请先修复邮件中的错误再发送。",
+            )
+          } else if !model.mail.api_key_set ||
+            model.mail.from_address.trim() == "" {
+            tr(
+              model.lang,
+              "Configure mail delivery before sending.",
+              "请先完成邮件发送设置。",
+            )
+          } else {
+            ""
+          }
+          if notice != "" {
+            (
+              { ..model, send_notice: notice, send_notice_ok: false },
+              @rabbita.none,
+            )
+          } else {
+            let (html, _) = render_source(model, document)
+            let next = {
+              ..model,
+              send_busy: true,
+              send_notice: "",
+              send_notice_ok: false,
+            }
+            (
+              next,
+              @rabbita.perform(data => emit(SendFinished(data)), async fn() -> String noraise {
+                send_mail_task(html, model.send_to, subject)
+              }),
+            )
+          }
+        }
+      }
+    SendFinished(json) => {
+      let (ok, message) = parse_send_reply(json)
+      (
+        {
+          ..model,
+          send_busy: false,
+          send_notice: message,
+          send_notice_ok: ok,
+        },
+        @rabbita.none,
+      )
+    }
+    OpenDeliverySettings => {
+      let next = {
+        ..model,
+        send_open: false,
+        send_busy: false,
+        send_notice_ok: false,
+        open_tabs: ensure_tab(model.open_tabs, settings_tab_id),
+        active_tab: settings_tab_id,
+      }
+      persist(next)
+      (
+        next,
+        @rabbita.perform(data => emit(MailLoaded(data)), load_mail_task),
+      )
+    }
+    MailLoaded(json) => {
+      let loaded = parse_mail_settings(json)
+      let suggestion = profile_delivery_email(model.profile)
+      let mail = {
+        ..loaded,
+        from_name: if loaded.from_name == "" && suggestion != "" {
+          model.profile.name
+        } else {
+          loaded.from_name
+        },
+        from_address: if loaded.from_address == "" {
+          suggestion
+        } else {
+          loaded.from_address
+        },
+      }
+      (
+        {
+          ..model,
+          mail,
+          mail_notice: "",
+          mail_notice_ok: false,
+          mail_test_to: if model.mail_test_to == "" {
+            suggestion
+          } else {
+            model.mail_test_to
+          },
+        },
+        @rabbita.none,
+      )
+    }
+    MailFieldChanged(field, value) =>
+      (
+        {
+          ..model,
+          mail: model.mail.with_field(field, value),
+          mail_notice: "",
+          mail_notice_ok: false,
+        },
+        @rabbita.none,
+      )
+    SaveMailSettings => {
+      let payload = mail_update_json(model.mail)
+      (
+        {
+          ..model,
+          mail_notice: tr(model.lang, "Saving...", "保存中..."),
+          mail_notice_ok: false,
+        },
+        @rabbita.perform(data => emit(MailSaved(data)), async fn() -> String noraise {
+          save_mail_task(payload)
+        }),
+      )
+    }
+    MailSaved(json) => {
+      let (ok, message, api_key_set) = parse_save_reply(json)
+      let mail = if ok {
+        { ..model.mail, api_key: "", api_key_set, }
+      } else {
+        { ..model.mail, api_key_set, }
+      }
+      (
+        { ..model, mail, mail_notice: message, mail_notice_ok: ok },
+        @rabbita.none,
+      )
+    }
+    TestMailSettings => {
+      let test_to = model.mail_test_to.trim().to_owned()
+      if test_to == "" || !test_to.contains("@") {
+        (
+          {
+            ..model,
+            mail_notice: tr(
+              model.lang,
+              "Enter a test recipient email address.",
+              "请填写测试收件邮箱。",
+            ),
+            mail_notice_ok: false,
+          },
+          @rabbita.none,
+        )
+      } else {
+        let payload = test_mail_json(model.mail, test_to)
+        (
+          {
+            ..model,
+            mail_notice: tr(
+              model.lang,
+              "Saving and sending a test email...",
+              "正在保存并发送测试邮件...",
+            ),
+            mail_notice_ok: false,
+          },
+          @rabbita.perform(data => emit(MailTested(data)), async fn() -> String noraise {
+            test_mail_task(payload)
+          }),
+        )
+      }
+    }
+    MailTestToChanged(value) =>
+      (
+        { ..model, mail_test_to: value },
+        @rabbita.none,
+      )
+    MailTested(json) => {
+      let (ok, message, api_key_set) = parse_save_reply(json)
+      let mail = if ok {
+        { ..model.mail, api_key: "", api_key_set, }
+      } else {
+        { ..model.mail, api_key_set, }
+      }
+      (
+        { ..model, mail, mail_notice: message, mail_notice_ok: ok },
+        @rabbita.none,
+      )
+    }
+    ToggleMailAdvanced =>
+      (
+        { ..model, mail_advanced_open: !model.mail_advanced_open },
+        @rabbita.none,
+      )
+    CopyMailHelpLink => {
+      copy_text(help_link(model.mail.provider))
+      (
+        {
+          ..model,
+          mail_notice: tr(model.lang, "Link copied.", "链接已复制。"),
+          mail_notice_ok: true,
+        },
+        @rabbita.none,
+      )
     }
     SetTheme(theme) => {
       let prefs = { ..model.prefs, theme, }
@@ -1919,7 +2209,11 @@ fn editor_pane(
 }
 
 ///|
-fn preview_pane(model : Model, preview_html : String) -> Html {
+fn preview_pane(
+  emit : Emit[Msg],
+  model : Model,
+  preview_html : String,
+) -> Html {
   let preview_attrs = @html.Attrs::build().srcdoc(preview_html)
   div(class="sigil-preview", [
     div(class="sigil-pane-bar", [
@@ -1929,6 +2223,7 @@ fn preview_pane(model : Model, preview_html : String) -> Html {
           class="sigil-pane-meta",
           tr(model.lang, "640 px column", "640 px 阅读栏"),
         ),
+        send_button(emit, model),
         export_button(model),
       ]),
     ]),
@@ -2077,7 +2372,7 @@ fn compose_workspace(
     model.workspace_preview_doc_id == document.id {
     workspace_preview_pane(emit, model, document)
   } else {
-    preview_pane(model, preview_html)
+    preview_pane(emit, model, preview_html)
   }
   div(class="sigil-workspace", [
     editor_pane(emit, model, document, result.diagnostics),
@@ -3028,13 +3323,14 @@ fn settings_tab(emit : Emit[Msg], model : Model) -> Html {
           div(class="sigil-choice-row", language_choices),
         ]),
       ]),
+      mail_settings_section(emit, model),
       div(class="sigil-profile-footer", [
         span(
           class="sigil-profile-hint",
           tr(
             model.lang,
-            "Saved locally.",
-            "保存在本地。",
+            "Appearance is saved locally; delivery settings are stored by the desktop backend.",
+            "外观保存在本地；发送设置由桌面后端保存。",
           ),
         ),
         div(class="sigil-profile-actions", [
@@ -3585,6 +3881,7 @@ fn view(emit : Emit[Msg], model : Model) -> Html {
     table_picker(emit),
     chart_picker(emit),
     avatar_picker(emit),
+    send_dialog(emit, model),
     div(class="sigil-body", [
       activity_bar(emit, model),
       sidebar(emit, model),
@@ -3607,5 +3904,6 @@ fn sigil_app() -> @rabbita.Val[Html] {
 ///|
 #warnings("-alert_unstable")
 fn main {
+  init_email_export()
   @rabbita.new(sigil_app).mount("app")
 }
