@@ -24,7 +24,7 @@ struct Prefs {
 
 ///|
 let accent_palette : ReadOnlyArray[String] = [
-  "#007acc", "#0e8a6e", "#8e44ad", "#b7791f", "#c0392b",
+  "#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444",
 ]
 
 ///|
@@ -34,7 +34,7 @@ let editor_font_sizes : Array[Int32] = [12, 13, 14, 15, 16]
 fn default_prefs() -> Prefs {
   {
     theme: Dark,
-    accent: "#007acc",
+    accent: "#3b82f6",
     density: Comfortable,
     editor_font_size: 13,
   }
@@ -47,7 +47,7 @@ fn valid_accent(value : String) -> String {
       return color
     }
   }
-  "#007acc"
+  "#3b82f6"
 }
 
 ///|

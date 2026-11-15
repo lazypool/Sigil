@@ -501,6 +501,26 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
 }
 
 ///|
+fn sigil_mark() -> Html {
+  @svg.svg(
+    class="sigil-logo-mark",
+    view_box="0 0 24 24",
+    width=18,
+    height=18,
+    attrs=@svg.Attrs::build()
+      .fill("none")
+      .stroke("currentColor")
+      .stroke_width("2")
+      .stroke_linecap("round")
+      .stroke_linejoin("round"),
+    [
+      @svg.path(d="M4 20l4.2-1.1L19 8.1a2.2 2.2 0 0 0-3.1-3.1L5.1 15.8 4 20z"),
+      @svg.path(d="M13.8 6.9l3.3 3.3"),
+    ],
+  )
+}
+
+///|
 fn icon_svg(children : Array[@svg.Svg]) -> Html {
   @svg.svg(
     class="sigil-icon",
@@ -620,15 +640,17 @@ fn export_button(model : Model) -> Html {
 
 ///|
 fn titlebar(emit : Emit[Msg], model : Model) -> Html {
+  let current = if model.active_tab == "" {
+    tr(model.lang, "Workspace", "工作区")
+  } else {
+    tab_title(model, model.active_tab)
+  }
   header(class="sigil-titlebar", [
     div(class="sigil-titlebar-left", [
-      div(class="sigil-logo", [span("S")]),
+      div(class="sigil-logo", [sigil_mark()]),
       span(class="sigil-wordmark", "Sigil"),
       span(class="sigil-titlebar-divider", "/"),
-      span(
-        class="sigil-document-title",
-        tr(model.lang, "Local Workspace", "本地工作区"),
-      ),
+      span(class="sigil-document-title", current),
     ]),
     div(class="sigil-titlebar-actions", [
       button(
@@ -637,23 +659,6 @@ fn titlebar(emit : Emit[Msg], model : Model) -> Html {
         title=tr(model.lang, "Switch language", "切换语言"),
         on_click=emit(ToggleLanguage),
         [span(lang_label(model.lang))],
-      ),
-      div(class="sigil-theme-control", [
-        span(class="sigil-control-label", tr(model.lang, "Theme", "主题色")),
-        input(
-          input_type=@html.InputType::Color,
-          class="sigil-theme-color",
-          value="#2563EB",
-          attrs=@html.Attrs::build().disabled(true),
-        ),
-        span(class="sigil-theme-value", "#2563EB"),
-      ]),
-      export_button(model),
-      button(
-        type_="button",
-        class="sigil-send",
-        disabled=true,
-        tr(model.lang, "Send", "发送"),
       ),
       button(
         type_="button",
@@ -803,14 +808,6 @@ fn tabbar(emit : Emit[Msg], model : Model) -> Html {
       on_click=emit(NewDocument),
       [span("+")],
     ),
-  )
-  children.push(div(class="sigil-tabs-spacer", ([] : Array[Html])))
-  children.push(
-    div(class="sigil-tab-meta", [
-      span(tr(model.lang, "Autosaved", "已自动保存")),
-      span(class="sigil-tab-meta-sep", "/"),
-      span(model.profile.completeness() + tr(model.lang, " profile", " 资料")),
-    ]),
   )
   div(class="sigil-tabs", children)
 }
@@ -1035,20 +1032,23 @@ fn editor_pane(
 }
 
 ///|
-fn preview_pane(lang : Lang, preview_html : String) -> Html {
+fn preview_pane(model : Model, preview_html : String) -> Html {
   let preview_attrs = @html.Attrs::build().srcdoc(preview_html)
   div(class="sigil-preview", [
     div(class="sigil-pane-bar", [
-      span(class="sigil-pane-title", tr(lang, "Preview", "预览")),
-      span(
-        class="sigil-pane-meta",
-        tr(lang, "640px reading column", "640px 阅读栏"),
-      ),
+      span(class="sigil-pane-title", tr(model.lang, "Preview", "预览")),
+      div(class="sigil-pane-actions", [
+        span(
+          class="sigil-pane-meta",
+          tr(model.lang, "640 px column", "640 px 阅读栏"),
+        ),
+        export_button(model),
+      ]),
     ]),
     div(class="sigil-preview-stage", [
       iframe(
         class="sigil-preview-frame",
-        title=tr(lang, "Sigil preview", "Sigil 预览"),
+        title=tr(model.lang, "Sigil preview", "Sigil 预览"),
         sandbox="allow-same-origin",
         attrs=preview_attrs,
       ),
@@ -1076,7 +1076,7 @@ fn compose_workspace(
       on_mousedown=emit.map(_ => BeginDrag),
       [div(class="sigil-splitter-grip", ([] : Array[Html]))],
     ),
-    preview_pane(model.lang, preview_html),
+    preview_pane(model, preview_html),
   ])
 }
 
@@ -1127,8 +1127,8 @@ fn profile_tab(emit : Emit[Msg], model : Model) -> Html {
           class="sigil-profile-subtitle",
           tr(
             model.lang,
-            "Stored in the workspace and reused by signature and footer themes. The document never stores personal data.",
-            "资料保存在工作区中，供签名和页脚主题复用。文档本身不保存个人资料。",
+            "Personal details used by signatures and footers.",
+            "用于签名和页脚的个人信息。",
           ),
         ),
       ]),
@@ -1151,8 +1151,8 @@ fn profile_tab(emit : Emit[Msg], model : Model) -> Html {
             class="sigil-profile-summary-meta",
             tr(
               model.lang,
-              "The profile belongs to this workspace and stays available on every launch.",
-              "资料属于当前工作区，每次启动应用时都可用。",
+              "Saved with this workspace.",
+              "随当前工作区一起保存。",
             ),
           ),
         ]),
@@ -1169,8 +1169,8 @@ fn profile_tab(emit : Emit[Msg], model : Model) -> Html {
               class="sigil-settings-description",
               tr(
                 model.lang,
-                "Shown in the title bar, profile summary, and signature themes.",
-                "用于标题栏、资料摘要和签名主题。",
+                "Shown in the title bar and signatures.",
+                "显示在标题栏和签名中。",
               ),
             ),
           ]),
@@ -1272,8 +1272,8 @@ fn profile_tab(emit : Emit[Msg], model : Model) -> Html {
           class="sigil-profile-hint",
           tr(
             model.lang,
-            "Changes apply to signature and footer themes. Profile fields are optional.",
-            "更改会用于签名和页脚主题。资料字段均为可选项。",
+            "All fields are optional.",
+            "所有字段均为可选。",
           ),
         ),
         div(class="sigil-profile-actions", [
@@ -1377,8 +1377,8 @@ fn images_tab(emit : Emit[Msg], model : Model) -> Html {
         class="sigil-assets-empty-text",
         tr(
           model.lang,
-          "Import images into this folder, or move existing images here with the folder menu on each card.",
-          "可将图片导入此文件夹，或用每张图片卡片上的文件夹菜单移动到这里。",
+          "Import images here, or move existing ones with each card's folder menu.",
+          "在这里导入图片，或用卡片上的文件夹菜单移动现有图片。",
         ),
       ),
     ])
@@ -1429,8 +1429,8 @@ fn images_tab(emit : Emit[Msg], model : Model) -> Html {
           class="sigil-profile-subtitle",
           tr(
             model.lang,
-            "Images are organized into workspace folders, not stored as absolute paths. Inserting one adds an <image:...> line to the active email.",
-            "图片按工作区文件夹组织，不使用绝对路径。插入图片会向当前邮件添加一行 <image:...> 标记。",
+            "Organized in workspace folders. Insert one as <image:name>.",
+            "按工作区文件夹组织，插入为 <image:name> 标记。",
           ),
         ),
       ]),
@@ -1565,8 +1565,8 @@ fn settings_tab(emit : Emit[Msg], model : Model) -> Html {
           class="sigil-profile-subtitle",
           tr(
             model.lang,
-            "Customize how the Sigil workspace looks. These settings never change the email theme color.",
-            "自定义 Sigil 工作区的外观。这些设置不会改变邮件的主题色。",
+            "Adjust how the workspace looks.",
+            "调整工作区的外观。",
           ),
         ),
       ]),
@@ -1581,8 +1581,8 @@ fn settings_tab(emit : Emit[Msg], model : Model) -> Html {
               class="sigil-settings-description",
               tr(
                 model.lang,
-                "Switch between dark and light application chrome.",
-                "在深色和浅色应用界面之间切换。",
+                "Choose a dark or light workspace.",
+                "选择深色或浅色界面。",
               ),
             ),
           ]),
@@ -1600,8 +1600,8 @@ fn settings_tab(emit : Emit[Msg], model : Model) -> Html {
               class="sigil-settings-description",
               tr(
                 model.lang,
-                "Used by the application chrome and status bar.",
-                "用于应用界面和状态栏。",
+                "Changes buttons and the status bar.",
+                "改变按钮和状态栏的颜色。",
               ),
             ),
           ]),
@@ -1619,8 +1619,8 @@ fn settings_tab(emit : Emit[Msg], model : Model) -> Html {
               class="sigil-settings-description",
               tr(
                 model.lang,
-                "Compact mode reduces padding across the workspace.",
-                "紧凑模式会减少工作区各处的留白。",
+                "Compact tightens spacing.",
+                "紧凑模式减少留白。",
               ),
             ),
           ]),
@@ -1638,8 +1638,8 @@ fn settings_tab(emit : Emit[Msg], model : Model) -> Html {
               class="sigil-settings-description",
               tr(
                 model.lang,
-                "Only the markup editor changes. The email preview keeps its 16px reading size.",
-                "仅改变标记编辑器；邮件预览仍保持 16px 阅读字号。",
+                "Markup editor only; preview stays 16px.",
+                "仅影响编辑器；预览保持 16px。",
               ),
             ),
           ]),
@@ -1657,8 +1657,8 @@ fn settings_tab(emit : Emit[Msg], model : Model) -> Html {
               class="sigil-settings-description",
               tr(
                 model.lang,
-                "Application interface language. Document content is never translated.",
-                "应用界面语言。文档内容不会被翻译。",
+                "Interface language only.",
+                "仅影响界面语言。",
               ),
             ),
           ]),
@@ -1670,8 +1670,8 @@ fn settings_tab(emit : Emit[Msg], model : Model) -> Html {
           class="sigil-profile-hint",
           tr(
             model.lang,
-            "Appearance settings are stored locally and restored on launch.",
-            "外观设置保存在本地，下次启动时自动恢复。",
+            "Saved locally.",
+            "保存在本地。",
           ),
         ),
         div(class="sigil-profile-actions", [
@@ -1774,8 +1774,8 @@ fn styles_tab(emit : Emit[Msg], model : Model) -> Html {
             class="sigil-profile-subtitle",
             tr(
               model.lang,
-              "Preview and apply the basic letter, footer, divider, and signature styles to the selected email.",
-              "预览并应用信纸、页脚、分隔符和签名的基础样式。",
+              "Preview and apply letter, footer, divider, and signature styles.",
+              "预览并应用信纸、页脚、分隔符和签名样式。",
             ),
           ),
         ]),
