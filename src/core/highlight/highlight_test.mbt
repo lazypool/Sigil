@@ -93,3 +93,12 @@ test "highlight marks unknown insertions and directives as invalid" {
   assert_true(has_span(spans, Invalid, "<thing>"))
   assert_false(has_span(spans, HeaderKey, "@unknown"))
 }
+
+///|
+test "highlight recognizes chart palette directives and chart insertions" {
+  let spans = @highlight.highlight("@palette ocean\n\n<chart:sales>")
+  assert_true(has_span(spans, HeaderKey, "@palette"))
+  assert_true(has_span(spans, HeaderValue, "ocean"))
+  assert_true(has_span(spans, InsertionPrefix, "<chart:"))
+  assert_true(has_span(spans, InsertionTarget, "sales"))
+}

@@ -7,7 +7,7 @@
 
 ## 0. Design Principles
 
-1. **Minimal by default.** No multi-level headings, no rich text, no tables, no code blocks.
+1. **Minimal by default.** No multi-level headings, no rich text, no hand-written tables, no code blocks.
 2. **One theme color.** The entire email shares a single accent color; everything else is neutral gray.
 3. **Three text styles only.** `normal`, `strong` (same size, bold), `big` (bold, larger). No italics, underline, strikethrough, or multiple font sizes.
 4. **Fixed reading column.** Body content is capped at 640px wide, vertically stacked, compatible with all devices.
@@ -27,7 +27,7 @@ A document consists of two parts:
 [Body]
 ```
 
-- **Header directive block**: consecutive `@key value` lines at the very beginning of the document. Only four global directives are allowed.
+- **Header directive block**: consecutive `@key value` lines at the very beginning of the document. Only the global directives below are allowed.
 - **Body**: starts at the first non-`@` line and continues to the end of the document.
 - At least one blank line must separate the header block from the body.
 - Header directives must not appear in the body. An `@...` line in the body is treated as plain text and produces a warning.
@@ -36,7 +36,7 @@ A document consists of two parts:
 
 ## 2. Header Directives
 
-Only the following four directives are allowed in the header. Each may appear at most once.
+Only the following directives are allowed in the header. Each may appear at most once.
 
 | Directive | Value | Purpose |
 |---|---|---|
@@ -44,6 +44,7 @@ Only the following four directives are allowed in the header. Each may appear at
 | `@footer` | Footer theme id | Selects footer theme; appended automatically to the end |
 | `@split` | Divider style id | Selects divider style for all `---` |
 | `@letter` | Letter theme id | Selects the outer letter frame |
+| `@palette` | Chart palette id | Selects the palette used by every chart |
 
 ### 2.1 Syntax
 
@@ -52,6 +53,7 @@ Only the following four directives are allowed in the header. Each may appear at
 @footer legal
 @split wave
 @letter card
+@palette ocean
 ```
 
 ### 2.2 Rules
@@ -225,6 +227,8 @@ All insertions use `<>` and **must carry an explicit prefix**. An unprefixed `<>
 |---|---|---|---|
 | `sig:` | Signature | Block, must occupy its own line | `<sig:academic>` |
 | `image:` | Image | Block, must occupy its own line | `<image:product.png>` |
+| `table:` | Table | Block, must occupy its own line | `<table:report.csv>` |
+| `chart:` | Chart | Block, must occupy its own line | `<chart:growth.chart>` |
 | `icon:` | Built-in icon | Inline | `<icon:mail>` |
 | `link:` | Hyperlink | Inline | `<link:https://a.com>` |
 
@@ -252,10 +256,68 @@ All insertions use `<>` and **must carry an explicit prefix**. An unprefixed `<>
 - **Must occupy its own line**; inline occurrence → error.
 - Renders as a block image: centered, `max-width:100%`, `height:auto`.
 - Local assets and remote URLs are both allowed. On send, both are downloaded and embedded via CID.
+- Local image assets belong to the email's own library. Switching emails switches
+  the sidebar image list, and deleting an email deletes its images.
 - The old `![]()` syntax → error, with a hint to use `<image:...>`.
 - v0.1 does not support alt text.
 
-#### 3.5.3 Icon `<icon:...>`
+#### 3.5.3 Table `<table:...>`
+
+```text
+<table:report.csv>
+```
+
+- **Must occupy its own line**; inline occurrence → error.
+- The target is a CSV asset in the workspace table library; the value is the
+  asset file name.
+- Imported CSV, TSV, XLSX, XLS, ODS, and JSON files are converted to CSV on
+  import. Only the first worksheet of a workbook is imported.
+- Each email owns its own image and table library. Both are flat lists with
+  no folders or categories.
+
+#### 3.5.4 Chart `<chart:...>`
+
+```text
+<chart:growth.chart>
+```
+
+- **Must occupy its own line**; inline occurrence → error.
+- The target is a chart asset in the email's chart library; the value is the
+  asset name.
+- Chart assets are plain text. Import accepts either a full `:::chart kind`
+  block or a `kind: bar` first line followed by chart data.
+- New charts can also be created empty in the Charts tab and edited in place.
+- Charts use the document `@palette` preset, not the `@theme` color.
+- The Images and Tables tabs group their contents by the owning email, so every
+  email's library can be browsed and edited from the same tab.
+- Library tabs provide an inline preview page for images and tables; they do
+  not insert assets.
+- In the sidebar, clicking an image or table switches back to the owning
+  email's editor and previews the asset in the right preview pane, while its
+  `+` button inserts it into the active email. Clicking the email tab or
+  sidebar row clears the asset preview and restores the email preview.
+- The workspace uses inline views and inline confirmations instead of modal
+  dialogs.
+- The table preview is an inline editor: cells are editable, rows and columns
+  can be added, column widths are derived from cell content, and adding a
+  column stops at the hard limit of 5 columns. Its background and controls use
+  the application theme.
+  Switching emails switches the whole sidebar resource directory; deleting an
+  email deletes its tables.
+- Tables have a hard limit of 5 columns. Wide tables (more than 5 columns) are
+  split into numbered parts; parts after the first repeat the first column as
+  a key. Tables with more than 200 data rows are also split by rows, repeating
+  the header in each part. The import reports how many tables were created.
+- Each cell is limited to 60 characters. Longer cells are truncated on import
+  and when older tables are normalized, and the import reports how many cells
+  were truncated.
+- The CSV is parsed with RFC 4180 quoting and rendered as an email-safe HTML
+  table with inline styles and no scripts.
+- Tables are centered in the reading column. Header cells use a light tint of
+  the theme color, and body rows alternate between white and `#F7F8FA`.
+- A missing asset renders a visible `[table:name]` placeholder.
+
+#### 3.5.4 Icon `<icon:...>`
 
 ```text
 <icon:mail>
@@ -266,7 +328,7 @@ All insertions use `<>` and **must carry an explicit prefix**. An unprefixed `<>
 - Only built-in icon whitelist entries are allowed; unknown icon → error.
 - Preview uses SVG; on send, converted to a theme-colored PNG.
 
-#### 3.5.4 Link `<link:...>`
+#### 3.5.5 Link `<link:...>`
 
 ```text
 <link:https://example.com>
@@ -283,7 +345,7 @@ All insertions use `<>` and **must carry an explicit prefix**. An unprefixed `<>
 - Links use the theme color only, **no underline**.
 - URLs must not contain spaces or `|`.
 
-#### 3.5.5 Security
+#### 3.5.6 Security
 
 - Source `<...>` constructs produce only controlled AST nodes; HTML output is always escaped.
 - Source `<...>` is never passed through as raw HTML.
@@ -313,9 +375,22 @@ B: 20
 ```
 
 - Block element, occupies its own paragraph.
-- Inner content is simple key-value data, not a code block.
+- Inner content is simple line-based data, not a code block.
+- Supported types: `bar`, `stacked`, `line`, `area`, `pie`, `donut`,
+  `scatter`, `radar`, and `heatmap`.
+- Chart colors come from the document-wide `@palette` preset, not from
+  `@theme`. Available palettes: `default`, `ocean`, `sunset`, `forest`,
+  `berry`, `earth`, `mono`.
+- `title: ...` sets the caption and `labels: a, b, c` sets categories.
+- Multi-series charts use `series: name = value, value, ...`; a lone
+  `label: value` line is shorthand for a single series.
+- Scatter points use `x,y; x,y` after `series:`.
 - Preview outputs SVG; on send, rasterized to PNG and embedded.
-- Chart type and data fields are validated by the renderer; unknown types → error.
+- Unknown chart types render a placeholder instead of failing the document.
+- Charts can be stored in the per-email chart library and inserted with
+  `<chart:name>`, like `<image:name>` and `<table:name>`.
+- A chart library file is plain text: either the same `:::chart kind` block
+  used inline, or a first line `kind: bar` followed by chart data.
 
 ### 3.8 Plain Text Notes
 
@@ -566,6 +641,8 @@ Rendered result:
 | Inline `$...$` | Error | Inline formulas not supported |
 | `$$` not as standalone paragraph | Error | Formula must be standalone |
 | Duplicate header directive | Error | Keep first |
+| Unknown `@palette` preset | Error | Use a built-in palette id |
+| `<chart:...>` inline | Error | Must occupy its own line |
 | `@` directive in body | Warning | Treat as plain text |
 | Missing space between Han and Latin | Warning | Safe auto-fix |
 | Half-width comma in Chinese context | Warning | Suggested fix |

@@ -43,7 +43,7 @@
 | **Email-safe by default** | The renderer produces tables and inline CSS, without scripts, external fonts, flexbox, or grid. |
 | **One accent color** | The whole message shares a single theme color; everything else is neutral. |
 | **Content stays portable** | Documents are text. Style decisions live in the header, profile data lives in the profile, and layouts belong to themes. |
-| **Local-first workspace** | Documents, open tabs, split position, profile fields, preferences, and images autosave in browser storage. |
+| **Local-first workspace** | Documents, open tabs, split position, profile fields, preferences, and each email's images and tables autosave in browser storage. |
 
 ## What is inside
 
@@ -51,10 +51,12 @@
 - **A live preview** — every keystroke reparses the document and rebuilds a sandboxed email preview.
 - **Syntax highlighting** — header directives, dividers, lists, emphasis, insertions, links, and block constructs are color-coded.
 - **A profile tab** — name, contact details, education, links, and avatar feed signatures without putting personal data in the document.
-- **An image library** — import images into nested folders and insert them by name as `<image:...>`.
+- **Per-email libraries** — every email owns its own flat Images and Tables lists; library tabs group resources by email and preview them in place, while sidebar clicks return to the editor and preview the asset in the right pane.
+- **A table library** — import CSV, XLSX, XLS, ODS, or JSON files as CSV and insert them with `<table:name.csv>`. Tables are hard-limited to 5 columns and 60 characters per cell; wider or longer data is split or truncated on import.
 - **Style presets** — preview and apply letter, footer, divider, and signature styles to the active document.
 - **Appearance controls** — dark/light themes, accent color, density, editor font size, and English/Chinese UI chrome.
 - **HTML export** — save the rendered email-safe HTML through the browser save dialog.
+- **One-click sending** — send the rendered HTML through Resend or SendGrid; a guided setup, prefilled profile details, and a test-email check keep configuration simple. Inline images become CID attachments and the API key stays in the native backend.
 
 | Area | Details |
 | --- | --- |
@@ -152,7 +154,7 @@ sigil/
 
 ## Status
 
-Stage 0 is a complete local authoring workspace. The next milestones are linting, theme packs, native storage, and SMTP sending.
+Stage 0 is a complete local authoring workspace with Resend/SendGrid delivery. The next milestones are linting, theme packs, and native storage.
 
 ## License
 

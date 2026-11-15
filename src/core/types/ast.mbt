@@ -35,7 +35,9 @@ pub(all) enum Block {
   Image(String)
   Signature(String)
   Formula(String)
+  Table(String)
   Chart(String, String)
+  ChartRef(String)
   PlainText(String)
 }
 
@@ -47,6 +49,7 @@ pub(all) struct Document {
   footer : String?
   split : String?
   letter : String?
+  palette : String?
   blocks : Array[Block]
 }
 
@@ -78,5 +81,12 @@ pub(all) struct ParseResult {
 
 ///|
 pub fn Document::empty() -> Document {
-  { theme: None, footer: None, split: None, letter: None, blocks: [], }
+  {
+    theme: None,
+    footer: None,
+    split: None,
+    letter: None,
+    palette: None,
+    blocks: [],
+  }
 }

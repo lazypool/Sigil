@@ -4,6 +4,7 @@ enum StyleKind {
   LetterStyle
   FooterStyle
   SplitStyle
+  ChartStyle
   SignatureStyle
 }
 
@@ -13,6 +14,7 @@ fn style_options(kind : StyleKind) -> Array[String] {
     LetterStyle => ["minimal", "card"]
     FooterStyle => ["legal", "unsubscribe", "blank"]
     SplitStyle => ["line", "wave", "ornament"]
+    ChartStyle => @types.chart_palette_names
     SignatureStyle => ["classic", "minimal", "academic", "compact"]
   }
 }
@@ -23,6 +25,7 @@ fn style_kind_label(lang : Lang, kind : StyleKind) -> String {
     LetterStyle => tr(lang, "Letter", "信纸")
     FooterStyle => tr(lang, "Footer", "页脚")
     SplitStyle => tr(lang, "Divider", "分隔符")
+    ChartStyle => tr(lang, "Chart palette", "图表配色")
     SignatureStyle => tr(lang, "Signature", "签名")
   }
 }
@@ -52,6 +55,17 @@ fn style_label(lang : Lang, kind : StyleKind, id : String) -> String {
         "ornament" => tr(lang, "Ornament", "装饰")
         _ => id
       }
+    ChartStyle =>
+      match id {
+        "default" => tr(lang, "Default", "默认")
+        "ocean" => tr(lang, "Ocean", "海洋")
+        "sunset" => tr(lang, "Sunset", "日落")
+        "forest" => tr(lang, "Forest", "森林")
+        "berry" => tr(lang, "Berry", "莓果")
+        "earth" => tr(lang, "Earth", "大地")
+        "mono" => tr(lang, "Mono", "单色")
+        _ => id
+      }
     SignatureStyle =>
       match id {
         "classic" => tr(lang, "Classic", "经典")
@@ -69,6 +83,7 @@ fn style_default(kind : StyleKind) -> String {
     LetterStyle => "card"
     FooterStyle => "legal"
     SplitStyle => "wave"
+    ChartStyle => @types.chart_palette_default()
     SignatureStyle => "classic"
   }
 }
@@ -226,6 +241,11 @@ fn current_style(source : String, kind : StyleKind) -> String {
         Some(value) => value
         None => style_default(kind)
       }
+    ChartStyle =>
+      match current_header_value(source, "@palette") {
+        Some(value) => value
+        None => style_default(kind)
+      }
     SignatureStyle =>
       match current_signature_value(source) {
         Some(value) => value
@@ -240,12 +260,13 @@ fn apply_style(source : String, kind : StyleKind, value : String) -> String {
     LetterStyle => set_header_value(source, "@letter", value)
     FooterStyle => set_header_value(source, "@footer", value)
     SplitStyle => set_header_value(source, "@split", value)
+    ChartStyle => set_header_value(source, "@palette", value)
     SignatureStyle => set_signature_value(source, value)
   }
 }
 
 ///|
-fn style_preview_source(target : EmailDoc) -> String {
+fn style_preview_source(target : EmailDoc, kind : StyleKind) -> String {
   let parsed = @parser.parse(target.source)
   let theme = match parsed.document.theme {
     Some(value) => value
@@ -254,26 +275,42 @@ fn style_preview_source(target : EmailDoc) -> String {
   let footer = current_style(target.source, FooterStyle)
   let split = current_style(target.source, SplitStyle)
   let letter = current_style(target.source, LetterStyle)
+  let palette = current_style(target.source, ChartStyle)
   let signature = current_style(target.source, SignatureStyle)
-  "@theme " +
-  theme +
-  "\n@footer " +
-  footer +
-  "\n@split " +
-  split +
-  "\n@letter " +
-  letter +
-  "\n\nA quiet reading column makes long emails easier to read, with a single accent color and neutral gray supporting text.\n\n---\n\nThis preview uses your current profile, theme color, and workspace images.\n\n<sig:" +
-  signature +
-  ">\n"
+  let header = "@theme " +
+    theme +
+    "\n@footer " +
+    footer +
+    "\n@split " +
+    split +
+    "\n@letter " +
+    letter +
+    "\n@palette " +
+    palette +
+    "\n\n"
+  if kind is ChartStyle {
+    header +
+    "A preview of the selected chart palette across several chart types.\n\n" +
+    ":::chart bar\ntitle: Column comparison\nlabels: A, B, C, D, E\nseries: 2025 = 12, 18, 15, 24, 20\nseries: 2026 = 16, 22, 20, 30, 26\n:::\n\n" +
+    ":::chart line\ntitle: Trend\nlabels: Jan, Feb, Mar, Apr, May\nseries: Series 1 = 4, 8, 6, 11, 9\nseries: Series 2 = 7, 5, 9, 8, 12\n:::\n\n" +
+    ":::chart pie\ntitle: Share\nA: 40\nB: 30\nC: 20\nD: 10\n:::\n"
+  } else {
+    header +
+    "A quiet reading column makes long emails easier to read, with a single accent color and neutral gray supporting text.\n\n---\n\nThis preview uses your current profile, theme color, and workspace images.\n\n<sig:" +
+    signature +
+    ">\n"
+  }
 }
 
 ///|
 fn style_preview_html(model : Model, target : EmailDoc) -> String {
-  let result = @parser.parse(style_preview_source(target))
-  @render.render_email_html(
+  let result = @parser.parse(style_preview_source(target, model.style_view))
+  let library = library_for_document(model, target.id)
+  @render.render_email_html_with_libraries(
     result.document,
     to_core_profile(model.profile),
-    asset_map(model.assets),
+    asset_map(library.images),
+    table_map(library.tables),
+    chart_map(library.charts),
   )
 }

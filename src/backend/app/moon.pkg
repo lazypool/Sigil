@@ -1,6 +1,12 @@
 import {
   "moonbitlang/core/async",
+  "moonbitlang/core/async/fs",
+  "moonbitlang/core/async/http",
+  "moonbitlang/core/json",
   "moonbit-community/proton",
+  "moonbit-community/proton_contract",
+  "xiao/sigil/contract",
+  "xiao/sigil/core/mail",
 }
 
 supported_targets = "native"

@@ -5,6 +5,7 @@ test "rendered document escapes text and uses the theme accent" {
     footer: None,
     split: Some("wave"),
     letter: None,
+    palette: None,
     blocks: [
       @types.Block::Paragraph([
         @types.Inline::Text("<hello> & goodbye"),
@@ -41,6 +42,7 @@ test "plain text block renders escaped gray text" {
     footer: None,
     split: None,
     letter: None,
+    palette: None,
     blocks: [@types.Block::PlainText("<hello> & goodbye")],
   }
   let html = @render.render_document(

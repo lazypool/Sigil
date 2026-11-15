@@ -52,19 +52,16 @@ struct LegacyWorkspaceMeta {
 }
 
 ///|
-/// Previous image shape without folder placement, kept for migration.
-#derive(FromJson)
-struct LegacyImageAsset {
-  id : String
-  name : String
-  data_url : String
-}
-
-///|
 let profile_tab_id = "@profile"
 
 ///|
 let images_tab_id = "@images"
+
+///|
+let tables_tab_id = "@tables"
+
+///|
+let charts_tab_id = "@charts"
 
 ///|
 let settings_tab_id = "@settings"
@@ -84,6 +81,7 @@ fn document_template(lang : Lang) -> String {
         #|@footer legal
         #|@split wave
         #|@letter card
+        #|@palette default
         #|
         #|**你好，Sigil！**
         #|
@@ -99,10 +97,10 @@ fn document_template(lang : Lang) -> String {
         #|
         #|Sigil 额外的使用方法如下：
         #|
-        #|- @theme 设置主题色，@letter 选择信纸，@split 选择分隔符，@footer 追加页脚。
+        #|- @theme 设置主题色，@palette 选择图表配色，@letter 选择信纸，@split 选择分隔符，@footer 追加页脚。
         #|- <sig:classic> 插入个人签名，签名内容来自你的 Profile。
         #|- <link:https://example.com|示例链接> 生成主题色链接，<icon:mail> 插入内置图标。
-        #|- <image:name> 插入图片库中的图片，$$ 块排版公式，:::chart 块绘制简单图表。
+        #|- <image:name> 插入图片库中的图片，<table:name.csv> 插入表格，<chart:name> 插入图表，$$ 块排版公式，:::chart 块绘制简单图表。
         #|
         #|你可以直接修改这段文字，或从左侧新建一封邮件开始写作。
         #|
@@ -123,6 +121,7 @@ fn document_template(lang : Lang) -> String {
         #|@footer legal
         #|@split wave
         #|@letter card
+        #|@palette default
         #|
         #|**Hello, Sigil!**
         #|
@@ -138,10 +137,10 @@ fn document_template(lang : Lang) -> String {
         #|
         #|Additional ways to use Sigil:
         #|
-        #|- @theme sets the theme color, @letter selects the letter style, @split selects the divider, and @footer appends the footer.
+        #|- @theme sets the theme color, @palette selects the chart palette, @letter selects the letter style, @split selects the divider, and @footer appends the footer.
         #|- <sig:classic> inserts the personal signature from your Profile.
         #|- <link:https://example.com|Example link> creates a theme-colored link, and <icon:mail> inserts a built-in icon.
-        #|- <image:name> inserts an image from the library, $$ blocks typeset formulas, and :::chart blocks draw simple charts.
+        #|- <image:name> inserts an image from the library, <table:name.csv> inserts a table, <chart:name> inserts a chart, $$ blocks typeset formulas, and :::chart blocks draw simple charts.
         #|
         #|Edit this text directly, or create a new email from the sidebar to start writing.
         #|
@@ -157,6 +156,28 @@ fn document_template(lang : Lang) -> String {
         #|
       )
   }
+}
+
+///|
+fn has_document_title(documents : Array[EmailDoc], title : String) -> Bool {
+  for document in documents {
+    if document.title == title {
+      return true
+    }
+  }
+  false
+}
+
+///|
+fn next_document_title(documents : Array[EmailDoc], lang : Lang) -> String {
+  let prefix = tr(lang, "Untitled ", "未命名 ")
+  let mut index = documents.length() + 1
+  let mut title = prefix + index.to_string()
+  while has_document_title(documents, title) {
+    index = index + 1
+    title = prefix + index.to_string()
+  }
+  title
 }
 
 ///|
@@ -253,18 +274,13 @@ fn with_document_title(
 }
 
 ///|
-fn normalize_workspace(workspace : WorkspaceMeta, lang : Lang) -> WorkspaceMeta {
-  let workspace = if workspace.documents.is_empty() {
-    default_workspace(lang)
-  } else {
-    workspace
-  }
+fn normalize_workspace(workspace : WorkspaceMeta) -> WorkspaceMeta {
   let documents = workspace.documents
-  let first_doc = documents[0].id
   let open_tabs : Array[String] = []
   for id in workspace.open_tabs {
     let valid = id == profile_tab_id ||
       id == images_tab_id ||
+      id == tables_tab_id ||
       id == settings_tab_id ||
       id == styles_tab_id ||
       find_document(documents, id) is Some(_)
@@ -272,11 +288,13 @@ fn normalize_workspace(workspace : WorkspaceMeta, lang : Lang) -> WorkspaceMeta 
       open_tabs.push(id)
     }
   }
-  if open_tabs.is_empty() {
-    open_tabs.push(first_doc)
+  if open_tabs.is_empty() && !documents.is_empty() {
+    open_tabs.push(documents[0].id)
   }
   let active_tab = if contains_id(open_tabs, workspace.active_tab) {
     workspace.active_tab
+  } else if open_tabs.is_empty() {
+    ""
   } else {
     open_tabs[0]
   }
@@ -326,44 +344,12 @@ fn load_workspace(lang : Lang) -> WorkspaceMeta {
       }
     }
   }
-  normalize_workspace(workspace, lang)
+  normalize_workspace(workspace)
 }
 
 ///|
 fn save_workspace(workspace : WorkspaceMeta) -> Unit {
   storage_set("sigil.workspace", @json.ToJson::to_json(workspace).stringify())
-}
-
-///|
-fn load_assets() -> Array[ImageAsset] {
-  let raw = storage_get("sigil.assets")
-  if raw == "" {
-    return []
-  }
-  let parsed = @json.parse(raw) catch { _ => return [] }
-  let assets : Array[ImageAsset] = @json.from_json(parsed) catch {
-    _ => {
-      let legacy : Array[LegacyImageAsset] = @json.from_json(parsed) catch {
-        _ => return []
-      }
-      let migrated : Array[ImageAsset] = []
-      for asset in legacy {
-        migrated.push({
-          id: asset.id,
-          name: asset.name,
-          data_url: asset.data_url,
-          folder: "",
-        })
-      }
-      return migrated
-    }
-  }
-  assets
-}
-
-///|
-fn save_assets(assets : Array[ImageAsset]) -> Unit {
-  storage_set("sigil.assets", @json.ToJson::to_json(assets).stringify())
 }
 
 ///|
@@ -402,81 +388,13 @@ fn unique_asset_name(assets : Array[ImageAsset], name : String) -> String {
 fn merge_assets(
   existing : Array[ImageAsset],
   imported : Array[IncomingImageAsset],
-  folder : String,
 ) -> Array[ImageAsset] {
   let result = existing.copy()
   for asset in imported {
     let name = unique_asset_name(result, asset.name)
-    result.push({ id: asset.id, name, data_url: asset.data_url, folder, })
+    result.push({ id: asset.id, name, data_url: asset.data_url, folder: "", })
   }
   result
-}
-
-///|
-fn move_asset(
-  assets : Array[ImageAsset],
-  id : String,
-  folder : String,
-) -> Array[ImageAsset] {
-  let result : Array[ImageAsset] = []
-  for asset in assets {
-    if asset.id == id {
-      result.push({ ..asset, folder, })
-    } else {
-      result.push(asset)
-    }
-  }
-  result
-}
-
-///|
-fn assets_in_folder(
-  assets : Array[ImageAsset],
-  folder : String,
-) -> Array[ImageAsset] {
-  let result : Array[ImageAsset] = []
-  for asset in assets {
-    if asset.folder == folder {
-      result.push(asset)
-    }
-  }
-  result
-}
-
-///|
-fn folder_leaf(path : String) -> String {
-  match path.rev_split_once("/") {
-    Some((_, leaf)) => leaf.to_owned()
-    None => if path == "" { "Workspace" } else { path }
-  }
-}
-
-///|
-fn folder_depth(path : String) -> Int32 {
-  if path == "" {
-    return 0
-  }
-  let mut depth = 1
-  for ch in path {
-    if ch == '/' {
-      depth = depth + 1
-    }
-  }
-  depth
-}
-
-///|
-fn folder_path(parent : String, name : String) -> String? {
-  let name = name.trim().to_owned()
-  if name == "" {
-    return None
-  }
-  let name = name.replace_all(old="/", new="-")
-  if parent == "" {
-    Some(name)
-  } else {
-    Some(parent + "/" + name)
-  }
 }
 
 ///|
