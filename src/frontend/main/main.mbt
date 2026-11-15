@@ -2415,7 +2415,11 @@ fn editor_pane(
 }
 
 ///|
-fn preview_pane(model : Model, preview_html : String) -> Html {
+fn preview_pane(
+  emit : Emit[Msg],
+  model : Model,
+  preview_html : String,
+) -> Html {
   let preview_attrs = @html.Attrs::build().srcdoc(preview_html)
   div(class="sigil-preview", [
     div(class="sigil-pane-bar", [
@@ -2425,6 +2429,7 @@ fn preview_pane(model : Model, preview_html : String) -> Html {
           class="sigil-pane-meta",
           tr(model.lang, "640 px column", "640 px 阅读栏"),
         ),
+        send_button(emit, model),
         export_button(model),
       ]),
     ]),
@@ -2573,7 +2578,7 @@ fn compose_workspace(
     model.workspace_preview_doc_id == document.id {
     workspace_preview_pane(emit, model, document)
   } else {
-    preview_pane(model, preview_html)
+    preview_pane(emit, model, preview_html)
   }
   div(class="sigil-workspace", [
     editor_pane(emit, model, document, result.diagnostics),
@@ -3583,13 +3588,14 @@ fn settings_tab(emit : Emit[Msg], model : Model) -> Html {
           ),
         ),
       ]),
+      mail_settings_section(emit, model),
       div(class="sigil-profile-footer", [
         span(
           class="sigil-profile-hint",
           tr(
             model.lang,
-            "Saved locally.",
-            "保存在本地。",
+            "Appearance is saved locally; delivery settings are stored by the desktop backend.",
+            "外观保存在本地；发送设置由桌面后端保存。",
           ),
         ),
         div(class="sigil-profile-actions", [
