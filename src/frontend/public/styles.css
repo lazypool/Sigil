@@ -1071,6 +1071,54 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 0;
+  padding: 24px;
+  background: #16181d;
+}
+
+.sigil-workspace-preview-stage.is-table {
+  display: block;
+  padding: 18px;
+}
+
+.sigil-workspace-preview-image {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  object-fit: contain;
+}
+
+.sigil-workspace-preview-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 8px;
+  background: #f4f4f4;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.35);
+  color-scheme: light;
+}
+
+.sigil-workspace-preview-empty {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: var(--sigil-muted);
+  text-align: center;
+}
+
+.sigil-splitter {
+  position: relative;
+  flex: 0 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: #2b2b2b;
   cursor: col-resize;
 }
@@ -1629,6 +1677,180 @@ textarea {
 .sigil-side-table-insert:hover {
   background: color-mix(in srgb, var(--sigil-accent) 24%, transparent);
   color: #ffffff;
+}
+
+.sigil-side-table-row .sigil-icon {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  color: #8a94a3;
+}
+
+.sigil-side-table-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sigil-side-table-meta {
+  flex: 0 0 auto;
+  color: var(--sigil-faint);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sigil-sidebar-folder-label {
+  padding: 8px 8px 5px;
+  color: #6f6f6f;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sigil-side-table-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 6px;
+}
+
+.sigil-library-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  width: min(960px, 100%);
+  padding-top: 22px;
+}
+
+.sigil-library-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.sigil-library-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #303030;
+}
+
+.sigil-library-group-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sigil-library-group-name {
+  overflow: hidden;
+  color: #f2f5f8;
+  font-size: 16px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sigil-library-current {
+  padding: 2px 8px;
+  border: 1px solid color-mix(in srgb, var(--sigil-accent) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sigil-accent) 15%, transparent);
+  color: #8ab4ff;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sigil-library-group-count {
+  color: var(--sigil-muted);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sigil-library-empty {
+  padding: 20px;
+  border: 1px dashed #383838;
+  border-radius: 9px;
+  color: var(--sigil-faint);
+  font-size: 13px;
+  text-align: center;
+}
+
+.sigil-images-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  width: min(960px, 100%);
+}
+
+.sigil-folder-tree {
+  flex: 0 0 220px;
+  max-height: calc(100vh - 260px);
+  overflow: auto;
+  padding: 8px 6px;
+  border: 1px solid #333333;
+  border-radius: 6px;
+  color: #c6ccd6;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.sigil-side-table-row:hover {
+  background: #2d2d2d;
+  color: #ffffff;
+}
+
+.sigil-side-table-open {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sigil-side-table-insert {
+  display: grid;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #7b8390;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.14s ease, background 0.14s ease, color 0.14s ease;
+}
+
+.sigil-folder-title {
+  color: #f2f5f8;
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.sigil-folder-subtitle {
+  color: var(--sigil-muted);
+  font-size: 12.5px;
 }
 
 .sigil-side-table-row .sigil-icon {
@@ -3471,389 +3693,157 @@ textarea {
   background: #f59e0b;
 }
 
-/* Mail delivery */
-
-.sigil-mail-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 14px;
-  margin-top: 18px;
+/* AI writing panel */
+.sigil-ai-strip {
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  border-bottom: 1px solid #2b2f38;
+  background: #191b20;
 }
 
-.sigil-mail-actions .sigil-profile-hint {
-  margin-right: auto;
+.sigil-ai-strip .sigil-ai-error {
+  margin: 0;
 }
 
-.sigil-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(0, 0, 0, 0.55);
-}
-
-.sigil-modal {
+.sigil-ai-panel {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  width: min(520px, 100%);
-  padding: 26px 28px;
-  border: 1px solid var(--sigil-border);
-  border-radius: 14px;
-  background: var(--sigil-surface);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+  gap: 10px;
+  max-height: 48%;
+  overflow: auto;
+  padding: 14px 16px;
+  border-bottom: 1px solid #2b2f38;
+  background: #191b20;
 }
 
-.sigil-modal-heading {
+.sigil-ai-panel-head {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.sigil-modal-title {
-  color: #f5f7fa;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+.sigil-ai-panel-title {
+  color: #eef1f5;
+  font-size: 13px;
+  font-weight: 650;
 }
 
-.sigil-modal-subtitle {
+.sigil-ai-panel-copy {
   color: var(--sigil-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.sigil-ai-prompt {
+  width: 100%;
+  min-height: 78px;
+  max-height: 150px;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--sigil-border);
+  border-radius: 8px;
+  background: var(--sigil-surface);
+  color: #d6dae2;
   font-size: 13px;
   line-height: 1.5;
 }
 
-.sigil-modal-warning {
-  padding: 10px 12px;
-  border: 1px solid #8a5a1f;
-  border-radius: 8px;
-  background: rgba(245, 158, 11, 0.12);
-  color: #f0b96a;
-  font-size: 12.5px;
-  line-height: 1.5;
-}
-
-.sigil-modal-notice {
-  padding: 10px 12px;
-  border: 1px solid var(--sigil-border);
-  border-radius: 8px;
-  background: var(--sigil-bg);
-  color: var(--sigil-muted);
-  font-size: 12.5px;
-  line-height: 1.5;
-}
-
-.sigil-modal-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 4px;
-}
-
-.sigil-modal-spacer {
-  flex: 1 1 auto;
-}
-
-.theme-light .sigil-modal-title {
-  color: #16181b;
-}
-
-.theme-light .sigil-modal-warning {
-  border-color: #d9a441;
-  background: #fdf5e6;
-  color: #8a5a1f;
-}
-
-.theme-light .sigil-modal {
-  border-color: #dfe1e5;
-  background: #ffffff;
-  box-shadow: 0 24px 70px rgba(15, 17, 20, 0.25);
-}
-
-.theme-light .sigil-modal-notice {
-  border-color: #dfe1e5;
-  background: #f5f6f8;
-  color: #5c626b;
-}
-
-.sigil-mail-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 6px 11px;
-  border: 1px solid var(--sigil-border);
-  border-radius: 999px;
-  background: var(--sigil-bg);
-  color: var(--sigil-muted);
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.sigil-mail-status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--sigil-faint);
-}
-
-.sigil-mail-status.is-ready {
-  border-color: #2f6b4f;
-  color: #72d6a4;
-}
-
-.sigil-mail-status.is-ready .sigil-mail-status-dot {
-  background: #34d399;
-}
-
-.sigil-mail-status.is-missing {
-  border-color: #7a5a22;
-  color: #e5b96c;
-}
-
-.sigil-mail-status.is-missing .sigil-mail-status-dot {
-  background: #f59e0b;
-}
-
-.sigil-mail-guide {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin: 18px 0;
-  padding: 18px 20px;
-  border: 1px solid var(--sigil-border);
-  border-radius: 10px;
-  background: var(--sigil-bg);
-}
-
-.sigil-mail-guide-title {
-  color: var(--sigil-text-strong, #eef1f5);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.sigil-mail-provider-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.sigil-mail-provider {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 12px 14px;
-  border: 1px solid var(--sigil-border);
-  border-radius: 9px;
-  background: var(--sigil-surface);
-  color: var(--sigil-muted);
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.14s ease, background 0.14s ease;
-}
-
-.sigil-mail-provider:hover {
-  background: var(--sigil-hover, #2a2e37);
-}
-
-.sigil-mail-provider.is-selected {
+.sigil-ai-prompt:focus {
+  outline: none;
   border-color: var(--sigil-accent);
-  background: rgba(59, 130, 246, 0.1);
 }
 
-.sigil-mail-provider-title {
-  color: var(--sigil-text-strong, #eef1f5);
-  font-size: 13px;
-  font-weight: 700;
+.sigil-ai-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
-.sigil-mail-provider-description {
-  color: var(--sigil-muted);
-  font-size: 11.5px;
-  line-height: 1.5;
+.sigil-ai-status {
+  color: #8ab4ff;
+  font-size: 12.5px;
 }
 
-.sigil-mail-steps {
+.sigil-ai-error {
+  padding: 8px 10px;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.sigil-ai-result {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.sigil-mail-step {
+.sigil-ai-result-head {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.sigil-mail-step-number {
-  flex: 0 0 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--sigil-surface);
-  color: var(--sigil-accent);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 20px;
-  text-align: center;
-}
-
-.sigil-mail-step-text {
-  color: var(--sigil-muted);
-  font-size: 12.5px;
-  line-height: 1.55;
-}
-
-.sigil-mail-link-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.sigil-mail-link {
-  color: var(--sigil-accent);
-  font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
-  font-size: 11.5px;
-  word-break: break-all;
-}
-
-.sigil-field-hint {
-  color: var(--sigil-faint);
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.sigil-mail-advanced {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.sigil-mail-advanced-toggle {
-  align-self: flex-start;
-  padding: 0;
-  border: 0;
-  background: transparent;
+.sigil-ai-result-summary {
   color: var(--sigil-muted);
   font-size: 12px;
-  text-decoration: underline;
-  cursor: pointer;
 }
 
-.sigil-mail-advanced-toggle:hover {
-  color: var(--sigil-text-strong, #eef1f5);
-}
-
-.sigil-mail-notice {
-  margin-top: 14px;
+.sigil-ai-result-text {
+  max-height: 190px;
+  overflow: auto;
   padding: 10px 12px;
   border: 1px solid var(--sigil-border);
   border-radius: 8px;
-  font-size: 12.5px;
-  line-height: 1.5;
-}
-
-.sigil-mail-notice.is-success {
-  border-color: #2f6b4f;
-  background: rgba(52, 211, 153, 0.1);
-  color: #72d6a4;
-}
-
-.sigil-mail-notice.is-error {
-  border-color: #7a3535;
-  background: rgba(248, 113, 113, 0.1);
-  color: #f3a3a3;
-}
-
-.sigil-mail-actions {
-  margin-top: 16px;
-}
-
-.sigil-modal-warning-title {
-  display: block;
-  margin-bottom: 4px;
-  font-weight: 700;
-}
-
-.sigil-modal-warning-text {
-  display: block;
-}
-
-.sigil-modal-notice.is-success {
-  border-color: #2f6b4f;
-  background: rgba(52, 211, 153, 0.1);
-  color: #72d6a4;
-}
-
-.sigil-modal-notice.is-error {
-  border-color: #7a3535;
-  background: rgba(248, 113, 113, 0.1);
-  color: #f3a3a3;
-}
-
-.theme-light .sigil-mail-guide {
-  border-color: #dfe1e5;
-  background: #f7f8fa;
-}
-
-.theme-light .sigil-mail-provider {
-  border-color: #dfe1e5;
-  background: #ffffff;
-}
-
-.theme-light .sigil-mail-provider.is-selected {
-  border-color: var(--sigil-accent);
-  background: rgba(59, 130, 246, 0.08);
-}
-
-.theme-light .sigil-mail-provider-title {
-  color: #16181b;
-}
-
-.theme-light .sigil-mail-provider-description,
-.theme-light .sigil-mail-step-text {
-  color: #5c626b;
-}
-
-.theme-light .sigil-mail-step-number {
-  background: #eceef1;
-}
-
-.theme-light .sigil-mail-status {
-  background: #f7f8fa;
-}
-
-.theme-light .sigil-field-hint {
-  color: #8a9099;
-}
-
-.theme-light .sigil-mail-notice.is-success,
-.theme-light .sigil-modal-notice.is-success {
-  border-color: #a7d8bf;
-  background: #eefaf3;
-  color: #1c6b45;
-}
-
-.theme-light .sigil-mail-notice.is-error,
-.theme-light .sigil-modal-notice.is-error {
-  border-color: #e3b4b4;
-  background: #fdf1f1;
-  color: #9b2c2c;
-}
-
-.sigil-mail-guide-note {
-  color: var(--sigil-muted);
+  background: var(--sigil-surface);
+  color: #cfd5de;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.55;
+  white-space: pre-wrap;
 }
 
-.theme-light .sigil-mail-guide-note {
-  color: #5c626b;
+.sigil-settings-section > .sigil-settings-description {
+  margin-top: 12px;
+}
+
+.theme-light .sigil-ai-strip {
+  border-bottom-color: #e2e4e8;
+  background: #f6f7f9;
+}
+
+.theme-light .sigil-ai-panel {
+  border-bottom-color: #e2e4e8;
+  background: #f6f7f9;
+}
+
+.theme-light .sigil-ai-panel-title {
+  color: #1f2328;
+}
+
+.theme-light .sigil-ai-prompt {
+  background: #ffffff;
+  color: #24292f;
+}
+
+.theme-light .sigil-ai-status {
+  color: #2563eb;
+}
+
+.theme-light .sigil-ai-error {
+  border-color: rgba(220, 38, 38, 0.35);
+  background: #fff1f1;
+  color: #b42318;
+}
+
+.theme-light .sigil-ai-result-text {
+  background: #ffffff;
+  color: #424a53;
 }

@@ -146,7 +146,7 @@ extern "js" fn prepare_email_html(html : String) -> @js_async.Promise[String] =
 
 ///|
 extern "js" fn save_html_file(filename : String, html : String) -> Unit =
-  #| (filename, html) => {
+  #| async (filename, html) => {
   #|   const picker = (() => {
   #|     if (typeof window.showSaveFilePicker !== 'function') return null;
   #|     try {
@@ -183,14 +183,82 @@ extern "js" fn save_html_file(filename : String, html : String) -> Unit =
   #|     }
   #|     fallback(output);
   #|   };
-  #|   (async () => {
-  #|     let output = html;
+  #|   const frame = document.querySelector('.sigil-preview-frame');
+  #|   let live = [];
+  #|   try {
+  #|     if (frame && frame.contentDocument) {
+  #|       live = Array.from(frame.contentDocument.querySelectorAll('[data-sigil-math],[data-sigil-chart]'));
+  #|     }
+  #|   } catch (error) {
+  #|     live = [];
+  #|   }
+  #|   let doc = null;
+  #|   let targets = [];
+  #|   try {
+  #|     doc = new DOMParser().parseFromString(html, 'text/html');
+  #|     targets = Array.from(doc.querySelectorAll('[data-sigil-math],[data-sigil-chart]'));
+  #|   } catch (error) {
+  #|     doc = null;
+  #|   }
+  #|   if (!doc || live.length === 0 || targets.length === 0) {
+  #|     save(html);
+  #|     return;
+  #|   }
+  #|   const rasterize = (element) => new Promise((resolve, reject) => {
   #|     try {
-  #|       const prepare = globalThis.__sigilPrepareEmailHtml;
-  #|       if (typeof prepare === 'function') output = await prepare(html);
-  #|     } catch (error) {}
-  #|     await save(output);
-  #|   })();
+  #|       const rect = element.getBoundingClientRect();
+  #|       const pad = 8;
+  #|       const scale = 2;
+  #|       const width = Math.max(1, Math.ceil(rect.width)) + pad * 2;
+  #|       const height = Math.max(1, Math.ceil(rect.height)) + pad * 2;
+  #|       const wrapper = '<div xmlns="http://www.w3.org/1999/xhtml" style="width:' + width +
+  #|         'px;height:' + height +
+  #|         'px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:' +
+  #|         pad + 'px;background:#ffffff;color:#222833;">' + element.innerHTML + '</div>';
+  #|       const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width +
+  #|         '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height +
+  #|         '"><foreignObject x="0" y="0" width="100%" height="100%">' + wrapper +
+  #|         '</foreignObject></svg>';
+  #|       const image = new Image();
+  #|       image.onload = () => {
+  #|         try {
+  #|           const canvas = document.createElement('canvas');
+  #|           canvas.width = Math.max(1, Math.round(width * scale));
+  #|           canvas.height = Math.max(1, Math.round(height * scale));
+  #|           const context = canvas.getContext('2d');
+  #|           context.scale(scale, scale);
+  #|           context.fillStyle = '#ffffff';
+  #|           context.fillRect(0, 0, width, height);
+  #|           context.drawImage(image, 0, 0, width, height);
+  #|           resolve({ dataUrl: canvas.toDataURL('image/png'), width, height });
+  #|         } catch (error) {
+  #|           reject(error);
+  #|         }
+  #|       };
+  #|       image.onerror = () => reject(new Error('math or chart image failed'));
+  #|       image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  #|     } catch (error) {
+  #|       reject(error);
+  #|     }
+  #|   });
+  #|   try {
+  #|     const count = Math.min(live.length, targets.length);
+  #|     for (let index = 0; index < count; index = index + 1) {
+  #|       const shot = await rasterize(live[index]);
+  #|       const image = doc.createElement('img');
+  #|       image.setAttribute('src', shot.dataUrl);
+  #|       image.setAttribute('alt', (live[index].textContent || 'formula').trim());
+  #|       image.setAttribute(
+  #|         'style',
+  #|         'display:block;width:' + shot.width +
+  #|         'px;max-width:100%;height:auto;margin:20px auto;border:0;'
+  #|       );
+  #|       targets[index].replaceWith(image);
+  #|     }
+  #|     save('<!doctype html>\n' + doc.documentElement.outerHTML);
+  #|   } catch (error) {
+  #|     save(html);
+  #|   }
   #| }
 
 ///|
