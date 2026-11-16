@@ -725,7 +725,7 @@ fn send_dialog(emit : Emit[Msg], model : Model) -> Html {
       label(class="sigil-field", [
         span(
           class="sigil-field-label",
-          tr(model.lang, "Subject", "主题"),
+          tr(model.lang, "Subject", "邮件标题"),
         ),
         input(
           input_type=@html.InputType::Text,
