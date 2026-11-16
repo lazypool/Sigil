@@ -33,7 +33,7 @@
 
 ![Sigil dark workspace](docs/sigil.png)
 
-<p align="center"><sub>Syntax-highlighted editor, live 640px preview, tabs, image library, and profile-backed signatures.</sub></p>
+<p align="center"><sub>Syntax-highlighted editor, live responsive preview, tabs, image library, and profile-backed signatures.</sub></p>
 
 ## Why Sigil
 
@@ -61,7 +61,7 @@
 | Area | Details |
 | --- | --- |
 | **Editor** | Best-effort parsing with diagnostics, synchronized syntax overlay, and cursor-aware insertions. |
-| **Preview** | 100% width outer table, centered `max-width: 640px` column, 16px body text at 1.7 line height, no scripts. |
+| **Preview** | 100% width outer table, centered `max-width: 640px` column that collapses to the viewport width, 16px body text at 1.7 line height, no scripts. Charts scale with the column; signatures wrap; wide formulas and tables scroll inside their own block instead of widening the page. |
 | **Documents** | Bilingual starter template, multiple restored tabs, and autosaved local metadata. |
 | **Profile** | Shared profile fields feed signature themes; uploaded avatar appears in the title bar and signature. |
 

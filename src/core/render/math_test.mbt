@@ -8,6 +8,14 @@ test "formula renders fractions and scripts" {
 }
 
 ///|
+test "formula block scrolls instead of overflowing narrow screens" {
+  let html = @render.render_formula_html("\\frac{a}{b}")
+  assert_true(html.contains("overflow-x:auto"))
+  assert_true(html.contains("display:table"))
+  assert_true(html.contains("white-space:nowrap"))
+}
+
+///|
 test "formula renders roots, greek letters, and operators" {
   let html = @render.render_formula_html("\\sqrt[3]{x} \\le \\alpha \\times \\beta")
   assert_true(html.contains("√"))

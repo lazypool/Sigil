@@ -59,7 +59,7 @@ fn render_inline(inline : Inline, accent : String) -> String {
       escape_html(href) +
       "\" style=\"color:" +
       accent +
-      ";text-decoration:none;\">" +
+      ";text-decoration:none;overflow-wrap:anywhere;word-break:break-word;\">" +
       label +
       "</a>"
     }
@@ -174,7 +174,7 @@ fn render_signature(
     escape_html(profile.email) +
     "\" style=\"color:" +
     accent +
-    ";text-decoration:none;\">" +
+    ";text-decoration:none;overflow-wrap:anywhere;word-break:break-word;\">" +
     escape_html(profile.email) +
     "</a>"
   } else {
@@ -191,7 +191,7 @@ fn render_signature(
       escape_html(profile.website) +
       "\" style=\"color:" +
       accent +
-      ";text-decoration:none;\">" +
+      ";text-decoration:none;overflow-wrap:anywhere;word-break:break-word;\">" +
       escape_html(profile.website) +
       "</a></div>"
     } else {
@@ -212,7 +212,7 @@ fn render_signature(
   }
   if theme == "compact" {
     let compact_title = if title_line != "" { " · " + title_line } else { "" }
-    "<div style=\"margin:18px 0;font-size:13px;line-height:1.6;color:#555;\">" +
+    "<div class=\"sigil-signature\" style=\"margin:18px 0;max-width:100%;font-size:13px;line-height:1.6;color:#555;overflow-wrap:anywhere;word-break:break-word;\">" +
     "<strong style=\"color:#222833;\">" +
     escape_html(name) +
     "</strong>" +
@@ -221,7 +221,7 @@ fn render_signature(
     email +
     "</div>"
   } else if theme == "minimal" {
-    "<div style=\"margin:24px 0;padding-top:18px;border-top:1px solid #e5e5e5;font-size:14px;line-height:1.6;color:#333;\">" +
+    "<div class=\"sigil-signature\" style=\"margin:24px 0;padding-top:18px;border-top:1px solid #e5e5e5;max-width:100%;font-size:14px;line-height:1.6;color:#333;overflow-wrap:anywhere;word-break:break-word;\">" +
     "<div style=\"font-weight:600;font-size:15px;\">" +
     escape_html(name) +
     "</div>" +
@@ -233,7 +233,7 @@ fn render_signature(
     website +
     "</div>"
   } else if theme == "academic" {
-    "<div style=\"margin:24px 0;padding-top:18px;border-top:1px solid #e5e5e5;font-size:14px;line-height:1.6;color:#333;\">" +
+    "<div class=\"sigil-signature\" style=\"margin:24px 0;padding-top:18px;border-top:1px solid #e5e5e5;max-width:100%;font-size:14px;line-height:1.6;color:#333;overflow-wrap:anywhere;word-break:break-word;\">" +
     "<div style=\"font-weight:600;font-size:15px;\">" +
     escape_html(name) +
     "</div>" +
@@ -257,12 +257,12 @@ fn render_signature(
       escape_html(profile_initial(profile)) +
       "</div>"
     }
-    "<div style=\"margin:24px 0;padding-top:18px;border-top:1px solid #e5e5e5;\">" +
-    "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr>" +
-    "<td style=\"padding-right:14px;vertical-align:top;\">" +
+    "<div class=\"sigil-signature\" style=\"margin:24px 0;padding-top:18px;border-top:1px solid #e5e5e5;max-width:100%;overflow-wrap:anywhere;word-break:break-word;\">" +
+    "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:100%;max-width:100%;border-collapse:collapse;table-layout:fixed;\"><tr>" +
+    "<td style=\"width:40px;padding-right:14px;vertical-align:top;\">" +
     avatar +
     "</td>" +
-    "<td style=\"vertical-align:top;font-size:14px;line-height:1.5;color:#333;\">" +
+    "<td style=\"vertical-align:top;font-size:14px;line-height:1.5;color:#333;overflow-wrap:anywhere;word-break:break-word;\">" +
     "<div style=\"font-weight:600;\">" +
     escape_html(name) +
     "</div>" +
@@ -295,28 +295,28 @@ fn render_footer(
         escape_html(profile.email) +
         "\" style=\"color:" +
         accent +
-        ";text-decoration:none;\">" +
+        ";text-decoration:none;overflow-wrap:anywhere;word-break:break-word;\">" +
         escape_html(profile.email) +
         "</a>"
       } else {
         ""
       }
-      "<div style=\"margin-top:28px;padding:16px 0 4px;border-top:1px solid #ECEEF2;text-align:center;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:12px;line-height:1.9;letter-spacing:1px;color:" +
+      "<div style=\"margin-top:28px;padding:16px 0 4px;border-top:1px solid #ECEEF2;max-width:100%;text-align:center;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:12px;line-height:1.9;letter-spacing:1px;color:" +
       accent +
-      ";\">" +
+      ";overflow-wrap:anywhere;word-break:break-word;\">" +
       company +
       " / " +
       email +
       "<br><span style=\"color:#8a8a8a;font-size:11px;letter-spacing:0.5px;\">Sent with Sigil</span></div>"
     }
     Some("unsubscribe") =>
-      "<div style=\"margin-top:28px;padding:16px 0 4px;border-top:1px solid #ECEEF2;text-align:center;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:12px;line-height:1.9;letter-spacing:1px;color:#8a8a8a;\">" +
+      "<div style=\"margin-top:28px;padding:16px 0 4px;border-top:1px solid #ECEEF2;max-width:100%;text-align:center;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:12px;line-height:1.9;letter-spacing:1px;color:#8a8a8a;overflow-wrap:anywhere;word-break:break-word;\">" +
       "You received this email because you subscribed. " +
       "<a href=\"mailto:" +
       escape_html(profile.email) +
       "?subject=Unsubscribe\" style=\"color:" +
       accent +
-      ";text-decoration:none;\">Unsubscribe</a></div>"
+      ";text-decoration:none;overflow-wrap:anywhere;word-break:break-word;\">Unsubscribe</a></div>"
     Some("blank") => ""
     _ => ""
   }
@@ -352,7 +352,7 @@ fn render_chart_ref(
   match charts.get(name) {
     Some(spec) => render_chart_html(spec.kind, spec.text, palette)
     None =>
-      "<div style=\"margin:20px auto;padding:12px 14px;border:1px solid #e5e5e5;border-radius:4px;background:#fafafa;text-align:center;color:#8a8a8a;font-size:13px;\">" +
+      "<div style=\"margin:20px auto;padding:12px 14px;border:1px solid #e5e5e5;border-radius:4px;background:#fafafa;max-width:100%;box-sizing:border-box;text-align:center;color:#8a8a8a;font-size:13px;overflow-wrap:anywhere;word-break:break-word;\">" +
       "Chart not found: " +
       escape_html(name) +
       "</div>"
@@ -383,7 +383,7 @@ fn render_block(
     Chart(kind, text) => render_chart_html(kind, text, chart_palette_name(document))
     ChartRef(name) => render_chart_ref(name, charts, chart_palette_name(document))
     PlainText(text) =>
-      "<div style=\"margin:18px 0;color:#8a8a8a;font-size:14px;line-height:1.7;white-space:pre-wrap;\">" +
+      "<div style=\"margin:18px 0;max-width:100%;color:#8a8a8a;font-size:14px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;\">" +
       escape_html(text) +
       "</div>"
   }

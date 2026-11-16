@@ -3620,6 +3620,12 @@ textarea {
   .sigil-field-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .sigil-preview-stage,
+  .sigil-workspace-preview-stage,
+  .sigil-workspace-preview-stage.is-table {
+    padding: 12px;
+  }
 }
 
 /* Chart library */

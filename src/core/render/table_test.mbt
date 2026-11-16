@@ -27,6 +27,8 @@ test "table block renders an email-safe html table" {
   )
   assert_true(html.contains("<table role=\"presentation\" align=\"center\""))
   assert_true(html.contains("margin:0 auto"))
+  assert_true(html.contains("width:100%;max-width:100%"))
+  assert_true(html.contains("table-layout:fixed"))
   assert_true(html.contains("<th style=\"border:1px solid #E2E5EA"))
   assert_true(html.contains("background:#DEE8FC"))
   assert_true(html.contains("&lt;Ada&gt;"))

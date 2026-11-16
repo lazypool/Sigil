@@ -2415,7 +2415,7 @@ fn preview_pane(
       div(class="sigil-pane-actions", [
         span(
           class="sigil-pane-meta",
-          tr(model.lang, "640 px column", "640 px 阅读栏"),
+          tr(model.lang, "Responsive column", "自适应阅读栏"),
         ),
         send_button(emit, model),
         export_button(model),

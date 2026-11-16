@@ -656,7 +656,11 @@ Rendered result:
 - Email clients are not browsers. Body HTML must not depend on SVG, JS, or external CSS.
 - Formulas, charts, and icons may use SVG **in preview**; on **send**, they are rasterized to PNG and embedded via CID.
 - All layout uses tables and inline CSS to ensure consistency across Gmail, Outlook, Apple Mail, and other major clients.
-- The reading column is fixed at 640px and becomes 100% width on mobile.
+- The reading column is capped at 640px and becomes 100% width on mobile. Its
+  tables use `table-layout:fixed` so long content cannot widen the page.
+- Charts scale with the reading column. Signatures wrap long names and URLs.
+  Formulas and wide tables keep their intrinsic width and scroll inside their
+  own block on narrow screens instead of overflowing the page.
 
 ---
 

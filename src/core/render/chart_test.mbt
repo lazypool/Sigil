@@ -10,6 +10,7 @@ test "bar chart renders key-value data" {
   assert_true(html.contains("<rect"))
   assert_true(html.contains(">Jan<"))
   assert_true(html.contains(">Feb<"))
+  assert_true(html.contains("width:100%;max-width:720px"))
 }
 
 ///|

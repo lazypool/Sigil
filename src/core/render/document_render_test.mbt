@@ -32,6 +32,9 @@ test "rendered document escapes text and uses the theme accent" {
   assert_true(html.contains("#123456"))
   assert_true(html.contains("Ada Lovelace"))
   assert_true(html.contains("mailto:ada@example.com"))
+  assert_true(html.contains("class=\"sigil-signature\""))
+  assert_true(html.contains("table-layout:fixed"))
+  assert_true(html.contains("overflow-wrap:anywhere"))
   assert_true(html.contains("<script") == false)
 }
 
@@ -64,5 +67,7 @@ test "full email HTML keeps the reading column and has no scripts" {
     Map([]),
   )
   assert_true(html.contains("max-width:640px"))
+  assert_true(html.contains("@media (max-width: 640px)"))
+  assert_true(html.contains("overflow-wrap: break-word"))
   assert_false(html.contains("<script"))
 }

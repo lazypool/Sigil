@@ -272,10 +272,10 @@ fn chart_title_svg(title : String) -> String {
 ///|
 fn chart_frame(title : String, body : String) -> String {
   let label = if title == "" { "Chart" } else { title }
-  "<div class=\"sigil-chart\" data-sigil-chart=\"1\" style=\"margin:20px auto;max-width:720px;\">" +
+  "<div class=\"sigil-chart\" data-sigil-chart=\"1\" style=\"margin:20px auto;width:100%;max-width:720px;box-sizing:border-box;\">" +
   "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 720 400\" width=\"100%\" role=\"img\" aria-label=\"" +
   escape_html(label) +
-  "\" style=\"display:block;width:100%;height:auto;font-family:'Helvetica Neue',Arial,sans-serif;\">" +
+  "\" style=\"display:block;width:100%;max-width:100%;height:auto;font-family:'Helvetica Neue',Arial,sans-serif;\">" +
   "<title>" +
   escape_html(label) +
   "</title>" +
