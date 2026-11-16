@@ -134,7 +134,7 @@ fn chart_srcdoc(
 ) -> String {
   let extra = if compact {
     ".sigil-chart{margin:0 auto !important;max-width:100% !important;}" +
-    "svg{max-height:150px;width:auto !important;margin:0 auto;display:block;}"
+    "svg{max-height:150px;max-width:100% !important;width:auto !important;margin:0 auto;display:block;}"
   } else {
     ""
   }

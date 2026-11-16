@@ -3620,6 +3620,12 @@ textarea {
   .sigil-field-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .sigil-preview-stage,
+  .sigil-workspace-preview-stage,
+  .sigil-workspace-preview-stage.is-table {
+    padding: 12px;
+  }
 }
 
 /* Chart library */
@@ -3846,4 +3852,390 @@ textarea {
 .theme-light .sigil-ai-result-text {
   background: #ffffff;
   color: #424a53;
+}
+/* Mail delivery */
+
+.sigil-mail-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.sigil-mail-actions .sigil-profile-hint {
+  margin-right: auto;
+}
+
+.sigil-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.sigil-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(520px, 100%);
+  padding: 26px 28px;
+  border: 1px solid var(--sigil-border);
+  border-radius: 14px;
+  background: var(--sigil-surface);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+}
+
+.sigil-modal-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sigil-modal-title {
+  color: #f5f7fa;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.sigil-modal-subtitle {
+  color: var(--sigil-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.sigil-modal-warning {
+  padding: 10px 12px;
+  border: 1px solid #8a5a1f;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #f0b96a;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.sigil-modal-notice {
+  padding: 10px 12px;
+  border: 1px solid var(--sigil-border);
+  border-radius: 8px;
+  background: var(--sigil-bg);
+  color: var(--sigil-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.sigil-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.sigil-modal-spacer {
+  flex: 1 1 auto;
+}
+
+.theme-light .sigil-modal-title {
+  color: #16181b;
+}
+
+.theme-light .sigil-modal-warning {
+  border-color: #d9a441;
+  background: #fdf5e6;
+  color: #8a5a1f;
+}
+
+.theme-light .sigil-modal {
+  border-color: #dfe1e5;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(15, 17, 20, 0.25);
+}
+
+.theme-light .sigil-modal-notice {
+  border-color: #dfe1e5;
+  background: #f5f6f8;
+  color: #5c626b;
+}
+
+.sigil-mail-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px;
+  border: 1px solid var(--sigil-border);
+  border-radius: 999px;
+  background: var(--sigil-bg);
+  color: var(--sigil-muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sigil-mail-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sigil-faint);
+}
+
+.sigil-mail-status.is-ready {
+  border-color: #2f6b4f;
+  color: #72d6a4;
+}
+
+.sigil-mail-status.is-ready .sigil-mail-status-dot {
+  background: #34d399;
+}
+
+.sigil-mail-status.is-missing {
+  border-color: #7a5a22;
+  color: #e5b96c;
+}
+
+.sigil-mail-status.is-missing .sigil-mail-status-dot {
+  background: #f59e0b;
+}
+
+.sigil-mail-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 18px 0;
+  padding: 18px 20px;
+  border: 1px solid var(--sigil-border);
+  border-radius: 10px;
+  background: var(--sigil-bg);
+}
+
+.sigil-mail-guide-title {
+  color: var(--sigil-text-strong, #eef1f5);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sigil-mail-provider-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sigil-mail-provider {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px solid var(--sigil-border);
+  border-radius: 9px;
+  background: var(--sigil-surface);
+  color: var(--sigil-muted);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+
+.sigil-mail-provider:hover {
+  background: var(--sigil-hover, #2a2e37);
+}
+
+.sigil-mail-provider.is-selected {
+  border-color: var(--sigil-accent);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.sigil-mail-provider-title {
+  color: var(--sigil-text-strong, #eef1f5);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sigil-mail-provider-description {
+  color: var(--sigil-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.sigil-mail-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sigil-mail-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.sigil-mail-step-number {
+  flex: 0 0 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--sigil-surface);
+  color: var(--sigil-accent);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+
+.sigil-mail-step-text {
+  color: var(--sigil-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.sigil-mail-link-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sigil-mail-link {
+  color: var(--sigil-accent);
+  font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
+  font-size: 11.5px;
+  word-break: break-all;
+}
+
+.sigil-field-hint {
+  color: var(--sigil-faint);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.sigil-mail-advanced {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.sigil-mail-advanced-toggle {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--sigil-muted);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.sigil-mail-advanced-toggle:hover {
+  color: var(--sigil-text-strong, #eef1f5);
+}
+
+.sigil-mail-notice {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--sigil-border);
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.sigil-mail-notice.is-success {
+  border-color: #2f6b4f;
+  background: rgba(52, 211, 153, 0.1);
+  color: #72d6a4;
+}
+
+.sigil-mail-notice.is-error {
+  border-color: #7a3535;
+  background: rgba(248, 113, 113, 0.1);
+  color: #f3a3a3;
+}
+
+.sigil-mail-actions {
+  margin-top: 16px;
+}
+
+.sigil-modal-warning-title {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 700;
+}
+
+.sigil-modal-warning-text {
+  display: block;
+}
+
+.sigil-modal-notice.is-success {
+  border-color: #2f6b4f;
+  background: rgba(52, 211, 153, 0.1);
+  color: #72d6a4;
+}
+
+.sigil-modal-notice.is-error {
+  border-color: #7a3535;
+  background: rgba(248, 113, 113, 0.1);
+  color: #f3a3a3;
+}
+
+.theme-light .sigil-mail-guide {
+  border-color: #dfe1e5;
+  background: #f7f8fa;
+}
+
+.theme-light .sigil-mail-provider {
+  border-color: #dfe1e5;
+  background: #ffffff;
+}
+
+.theme-light .sigil-mail-provider.is-selected {
+  border-color: var(--sigil-accent);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.theme-light .sigil-mail-provider-title {
+  color: #16181b;
+}
+
+.theme-light .sigil-mail-provider-description,
+.theme-light .sigil-mail-step-text {
+  color: #5c626b;
+}
+
+.theme-light .sigil-mail-step-number {
+  background: #eceef1;
+}
+
+.theme-light .sigil-mail-status {
+  background: #f7f8fa;
+}
+
+.theme-light .sigil-field-hint {
+  color: #8a9099;
+}
+
+.theme-light .sigil-mail-notice.is-success,
+.theme-light .sigil-modal-notice.is-success {
+  border-color: #a7d8bf;
+  background: #eefaf3;
+  color: #1c6b45;
+}
+
+.theme-light .sigil-mail-notice.is-error,
+.theme-light .sigil-modal-notice.is-error {
+  border-color: #e3b4b4;
+  background: #fdf1f1;
+  color: #9b2c2c;
+}
+
+.sigil-mail-guide-note {
+  color: var(--sigil-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.theme-light .sigil-mail-guide-note {
+  color: #5c626b;
 }

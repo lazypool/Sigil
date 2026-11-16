@@ -13,9 +13,9 @@ fn letter_style(accent : String, letter : String) -> String {
   if letter == "card" {
     "width:100%;max-width:640px;margin:0 auto;background:#FFFFFF;border-width:3px 0 0 0;border-style:solid;border-color:" +
     accent +
-    ";border-radius:6px;"
+    ";border-radius:6px;table-layout:fixed;box-sizing:border-box;"
   } else {
-    "width:100%;max-width:640px;margin:0 auto;background:#FFFFFF;"
+    "width:100%;max-width:640px;margin:0 auto;background:#FFFFFF;table-layout:fixed;box-sizing:border-box;"
   }
 }
 
@@ -42,14 +42,25 @@ pub fn build_letter_shell(
     #|body { color: #222833; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", Helvetica, Arial, sans-serif; }
     #|table { border-collapse: collapse; }
     #|td { vertical-align: top; }
-    #|.sigil-outer { width: 100%; }
+    #|.sigil-outer { width: 100%; table-layout: fixed; }
     #|.sigil-outer-cell { padding: 28px 12px; }
-    #|.sigil-column { width: 100%; max-width: 640px; margin: 0 auto; }
-    #|.sigil-body { padding: 32px 36px; font-size: 16px; line-height: 1.7; color: #222833; }
+    #|.sigil-column { width: 100%; max-width: 640px; margin: 0 auto; box-sizing: border-box; table-layout: fixed; }
+    #|.sigil-body { padding: 32px 36px; font-size: 16px; line-height: 1.7; color: #222833; box-sizing: border-box; overflow-wrap: break-word; word-break: break-word; }
     #|.sigil-body p { margin: 0 0 14px; }
     #|.sigil-body p:last-child { margin-bottom: 0; }
     #|.sigil-body strong { font-weight: 600; }
-    #|a { text-decoration: none; }
+    #|.sigil-body img, .sigil-body svg { max-width: 100%; height: auto; }
+    #|.sigil-signature, .sigil-chart, .sigil-math, .sigil-table-scroll { max-width: 100%; box-sizing: border-box; }
+    #|.sigil-math, .sigil-table-scroll, .sigil-chart { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    #|a { text-decoration: none; overflow-wrap: anywhere; }
+    #|@media (max-width: 640px) {
+    #|  .sigil-outer-cell { padding: 16px 8px; }
+    #|  .sigil-body { padding: 24px 20px; }
+    #|}
+    #|@media (max-width: 400px) {
+    #|  .sigil-outer-cell { padding: 10px 0; }
+    #|  .sigil-body { padding: 20px 14px; }
+    #|}
     #|</style>
     #|</head>
     #|<body>
@@ -58,7 +69,7 @@ pub fn build_letter_shell(
     outer_bg +
     "\" style=\"background:" +
     outer_bg +
-    ";\">" +
+    ";table-layout:fixed;\">" +
     "<tr>" +
     "<td class=\"sigil-outer-cell\" align=\"center\">"
   let column_table = "<table role=\"presentation\" class=\"sigil-column\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"" +

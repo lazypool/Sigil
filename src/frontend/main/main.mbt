@@ -2216,22 +2216,10 @@ fn sidebar(emit : Emit[Msg], model : Model) -> Html {
     ]),
     div(class="sigil-sidebar-section", [
       div(class="sigil-sidebar-title", [
-        span(tr(model.lang, "Tables", "表格")),
-        import_tables_button(
-          emit,
-          model.library_doc_id,
-          "sigil-sidebar-action",
-          tr(model.lang, "Import", "导入"),
-        ),
+        span(tr(model.lang, "Documents", "文档")),
+        span(class="sigil-sidebar-count", model.documents.length().to_string()),
       ]),
-      if model.tables.is_empty() {
-        div(
-          class="sigil-sidebar-empty",
-          tr(model.lang, "No tables yet.", "暂无表格。"),
-        )
-      } else {
-        div(class="sigil-side-table-list", sidebar_table_rows(emit, model))
-      },
+      div(class="sigil-doc-list", documents),
     ]),
     div(class="sigil-sidebar-section sigil-sidebar-images", [
       div(class="sigil-sidebar-title", [
@@ -2427,7 +2415,7 @@ fn preview_pane(
       div(class="sigil-pane-actions", [
         span(
           class="sigil-pane-meta",
-          tr(model.lang, "640 px column", "640 px 阅读栏"),
+          tr(model.lang, "Responsive column", "自适应阅读栏"),
         ),
         send_button(emit, model),
         export_button(model),

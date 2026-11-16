@@ -327,9 +327,9 @@ fn csv_table_html(accent : String, rows : Array[Array[String]]) -> String {
   let header_bg = tint_color(accent, 15)
   let builder = StringBuilder()
   builder.write_string(
-    "<div style=\"margin:20px 0;text-align:center;overflow-x:auto;\">" +
+    "<div class=\"sigil-table-scroll\" style=\"margin:20px 0;max-width:100%;text-align:center;overflow-x:auto;-webkit-overflow-scrolling:touch;\">" +
     "<table role=\"presentation\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" " +
-    "style=\"width:auto;max-width:100%;margin:0 auto;border-collapse:collapse;font-size:14px;line-height:1.5;color:#222833;\">",
+    "style=\"width:100%;max-width:100%;margin:0 auto;border-collapse:collapse;table-layout:fixed;font-size:14px;line-height:1.5;color:#222833;\">",
   )
   builder.write_string("<thead><tr>")
   let header = rows[0]

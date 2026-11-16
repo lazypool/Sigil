@@ -652,10 +652,22 @@ fn send_dialog(emit : Emit[Msg], model : Model) -> Html {
   }
   let send_label = if model.send_busy {
     tr(model.lang, "Sending...", "发送中...")
+  } else if model.send_notice_ok {
+    tr(model.lang, "OK", "确定")
   } else {
     tr(model.lang, "Send", "发送")
   }
-  let actions = if ready {
+  let actions = if model.send_notice_ok {
+    [
+      div(class="sigil-modal-spacer", ([] : Array[Html])),
+      button(
+        type_="button",
+        class="sigil-button is-primary",
+        on_click=emit(CloseSend),
+        [span(send_label)],
+      ),
+    ]
+  } else if ready {
     [
       button(
         type_="button",
@@ -725,7 +737,7 @@ fn send_dialog(emit : Emit[Msg], model : Model) -> Html {
       label(class="sigil-field", [
         span(
           class="sigil-field-label",
-          tr(model.lang, "Subject", "主题"),
+          tr(model.lang, "Subject", "邮件标题"),
         ),
         input(
           input_type=@html.InputType::Text,
