@@ -7,6 +7,7 @@
   "package": {
     "product_name": "Sigil",
     "version": "0.1.0",
+    "icons": ["build/icon.png"],
     "output": "dist"
   },
   "frontend": {
@@ -15,5 +16,24 @@
     "before_dev": "warren dev --browser-entry main --direct --port 4300",
     "before_build": "warren build --browser-entry main",
     "dist": "dist"
+  },
+  "platforms": {
+    "macos": {
+      "package": {
+        "formats": ["app", "zip", "dmg"]
+      }
+    },
+    "windows": {
+      "package": {
+        "formats": ["nsis", "zip"],
+        "icons": ["build/icon.ico"],
+        "nsis_install_mode": "currentUser"
+      }
+    },
+    "linux": {
+      "package": {
+        "formats": ["appimage"]
+      }
+    }
   }
 }
