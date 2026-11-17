@@ -326,7 +326,21 @@ All insertions use `<>` and **must carry an explicit prefix**. An unprefixed `<>
 
 - Inline element.
 - Only built-in icon whitelist entries are allowed; unknown icon → error.
-- Preview uses SVG; on send, converted to a theme-colored PNG.
+- Built-in icons (51):
+  - Contact: `mail`, `phone`, `location`, `user`, `clock`, `globe`
+  - Links: `link`, `external-link`, `arrow-right`
+  - Files: `file`, `download`, `folder`, `copy`, `trash`
+  - Calendar: `calendar`
+  - Email actions: `send`, `reply`, `forward`, `attach`, `share`
+  - Social: `github`, `linkedin`, `twitter`, `instagram`, `facebook`, `youtube`
+  - Status: `check`, `info`, `alert`, `star`, `heart`, `bell`, `bookmark`,
+    `flag`, `tag`
+  - Security: `lock`, `unlock`, `key`
+  - Media: `camera`, `image`, `video`, `music`, `mic`
+  - General: `home`, `map`, `search`, `edit`, `refresh`, `settings`, `gift`,
+    `credit-card`
+- Preview uses SVG colored with the `@theme` accent; on send, converted to a
+  theme-colored PNG.
 
 #### 3.5.5 Link `<link:...>`
 

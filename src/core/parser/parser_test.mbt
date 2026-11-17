@@ -158,3 +158,30 @@ test "inline table insertion is an error" {
   assert_true(result.diagnostics.length() > 0)
   assert_true(result.diagnostics[0].severity is Error)
 }
+
+///|
+test "built-in icons parse and unknown icons are rejected" {
+  let result = @parser.parse("Reach me at <icon:mail> or <icon:phone>.")
+  assert_eq(result.diagnostics.length(), 0)
+  match result.document.blocks[0] {
+    Paragraph(inlines) => {
+      let mut has_mail = false
+      let mut has_phone = false
+      for inline in inlines {
+        if inline is Icon("mail") {
+          has_mail = true
+        }
+        if inline is Icon("phone") {
+          has_phone = true
+        }
+      }
+      assert_true(has_mail)
+      assert_true(has_phone)
+    }
+    _ => fail("expected paragraph")
+  }
+  let unknown = @parser.parse("<icon:rocket>")
+  assert_eq(unknown.diagnostics.length(), 1)
+  assert_true(unknown.diagnostics[0].severity is Error)
+  assert_true(unknown.diagnostics[0].message.contains("Unknown icon"))
+}

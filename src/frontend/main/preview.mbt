@@ -56,7 +56,7 @@ extern "js" fn init_email_export() -> Unit =
   #|     try {
   #|       if (frame && frame.contentDocument) {
   #|         live = Array.from(
-  #|           frame.contentDocument.querySelectorAll('[data-sigil-math],[data-sigil-chart]')
+  #|           frame.contentDocument.querySelectorAll('[data-sigil-math],[data-sigil-chart],[data-sigil-icon]')
   #|         );
   #|       }
   #|     } catch (error) {
@@ -67,7 +67,7 @@ extern "js" fn init_email_export() -> Unit =
   #|     try {
   #|       doc = new DOMParser().parseFromString(html, 'text/html');
   #|       targets = Array.from(
-  #|         doc.querySelectorAll('[data-sigil-math],[data-sigil-chart]')
+  #|         doc.querySelectorAll('[data-sigil-math],[data-sigil-chart],[data-sigil-icon]')
   #|       );
   #|     } catch (error) {
   #|       doc = null;
@@ -77,7 +77,32 @@ extern "js" fn init_email_export() -> Unit =
   #|     }
   #|     const rasterize = (element) => new Promise((resolve, reject) => {
   #|       try {
+  #|         const isIcon = element.hasAttribute('data-sigil-icon');
   #|         const rect = element.getBoundingClientRect();
+  #|         if (isIcon) {
+  #|           const scale = 3;
+  #|           const width = Math.max(1, Math.ceil(rect.width));
+  #|           const height = Math.max(1, Math.ceil(rect.height));
+  #|           const image = new Image();
+  #|           image.onload = () => {
+  #|             try {
+  #|               const canvas = document.createElement('canvas');
+  #|               canvas.width = Math.max(1, Math.round(width * scale));
+  #|               canvas.height = Math.max(1, Math.round(height * scale));
+  #|               const context = canvas.getContext('2d');
+  #|               context.scale(scale, scale);
+  #|               context.drawImage(image, 0, 0, width, height);
+  #|               resolve({ dataUrl: canvas.toDataURL('image/png'), width, height });
+  #|             } catch (error) {
+  #|               reject(error);
+  #|             }
+  #|           };
+  #|           image.onerror = () => reject(new Error('icon image failed'));
+  #|           const clean = element.cloneNode(true);
+  #|           clean.style.margin = '0';
+  #|           image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(clean.outerHTML);
+  #|           return;
+  #|         }
   #|         const pad = 8;
   #|         const scale = 2;
   #|         const width = Math.max(1, Math.ceil(rect.width)) + pad * 2;
@@ -118,12 +143,23 @@ extern "js" fn init_email_export() -> Unit =
   #|         const shot = await rasterize(live[index]);
   #|         const image = doc.createElement('img');
   #|         image.setAttribute('src', shot.dataUrl);
-  #|         image.setAttribute('alt', (live[index].textContent || 'formula').trim());
-  #|         image.setAttribute(
-  #|           'style',
-  #|           'display:block;width:' + shot.width +
-  #|           'px;max-width:100%;height:auto;margin:20px auto;border:0;'
-  #|         );
+  #|         if (live[index].hasAttribute('data-sigil-icon')) {
+  #|           image.setAttribute('alt', '');
+  #|           image.setAttribute('width', shot.width);
+  #|           image.setAttribute('height', shot.height);
+  #|           image.setAttribute(
+  #|             'style',
+  #|             'display:inline-block;vertical-align:-3px;width:' + shot.width +
+  #|             'px;height:' + shot.height + 'px;margin:0 2px;border:0;'
+  #|           );
+  #|         } else {
+  #|           image.setAttribute('alt', (live[index].textContent || 'formula').trim());
+  #|           image.setAttribute(
+  #|             'style',
+  #|             'display:block;width:' + shot.width +
+  #|             'px;max-width:100%;height:auto;margin:20px auto;border:0;'
+  #|           );
+  #|         }
   #|         targets[index].replaceWith(image);
   #|       }
   #|       return '<!doctype html>\n' + doc.documentElement.outerHTML;
@@ -187,7 +223,7 @@ extern "js" fn save_html_file(filename : String, html : String) -> Unit =
   #|   let live = [];
   #|   try {
   #|     if (frame && frame.contentDocument) {
-  #|       live = Array.from(frame.contentDocument.querySelectorAll('[data-sigil-math],[data-sigil-chart]'));
+  #|       live = Array.from(frame.contentDocument.querySelectorAll('[data-sigil-math],[data-sigil-chart],[data-sigil-icon]'));
   #|     }
   #|   } catch (error) {
   #|     live = [];
@@ -196,7 +232,7 @@ extern "js" fn save_html_file(filename : String, html : String) -> Unit =
   #|   let targets = [];
   #|   try {
   #|     doc = new DOMParser().parseFromString(html, 'text/html');
-  #|     targets = Array.from(doc.querySelectorAll('[data-sigil-math],[data-sigil-chart]'));
+  #|     targets = Array.from(doc.querySelectorAll('[data-sigil-math],[data-sigil-chart],[data-sigil-icon]'));
   #|   } catch (error) {
   #|     doc = null;
   #|   }
@@ -206,7 +242,32 @@ extern "js" fn save_html_file(filename : String, html : String) -> Unit =
   #|   }
   #|   const rasterize = (element) => new Promise((resolve, reject) => {
   #|     try {
+  #|       const isIcon = element.hasAttribute('data-sigil-icon');
   #|       const rect = element.getBoundingClientRect();
+  #|       if (isIcon) {
+  #|         const scale = 3;
+  #|         const width = Math.max(1, Math.ceil(rect.width));
+  #|         const height = Math.max(1, Math.ceil(rect.height));
+  #|         const image = new Image();
+  #|         image.onload = () => {
+  #|           try {
+  #|             const canvas = document.createElement('canvas');
+  #|             canvas.width = Math.max(1, Math.round(width * scale));
+  #|             canvas.height = Math.max(1, Math.round(height * scale));
+  #|             const context = canvas.getContext('2d');
+  #|             context.scale(scale, scale);
+  #|             context.drawImage(image, 0, 0, width, height);
+  #|             resolve({ dataUrl: canvas.toDataURL('image/png'), width, height });
+  #|           } catch (error) {
+  #|             reject(error);
+  #|           }
+  #|         };
+  #|         image.onerror = () => reject(new Error('icon image failed'));
+  #|         const clean = element.cloneNode(true);
+  #|         clean.style.margin = '0';
+  #|         image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(clean.outerHTML);
+  #|         return;
+  #|       }
   #|       const pad = 8;
   #|       const scale = 2;
   #|       const width = Math.max(1, Math.ceil(rect.width)) + pad * 2;
@@ -247,12 +308,23 @@ extern "js" fn save_html_file(filename : String, html : String) -> Unit =
   #|       const shot = await rasterize(live[index]);
   #|       const image = doc.createElement('img');
   #|       image.setAttribute('src', shot.dataUrl);
-  #|       image.setAttribute('alt', (live[index].textContent || 'formula').trim());
-  #|       image.setAttribute(
-  #|         'style',
-  #|         'display:block;width:' + shot.width +
-  #|         'px;max-width:100%;height:auto;margin:20px auto;border:0;'
-  #|       );
+  #|       if (live[index].hasAttribute('data-sigil-icon')) {
+  #|         image.setAttribute('alt', '');
+  #|         image.setAttribute('width', shot.width);
+  #|         image.setAttribute('height', shot.height);
+  #|         image.setAttribute(
+  #|           'style',
+  #|           'display:inline-block;vertical-align:-3px;width:' + shot.width +
+  #|           'px;height:' + shot.height + 'px;margin:0 2px;border:0;'
+  #|         );
+  #|       } else {
+  #|         image.setAttribute('alt', (live[index].textContent || 'formula').trim());
+  #|         image.setAttribute(
+  #|           'style',
+  #|           'display:block;width:' + shot.width +
+  #|           'px;max-width:100%;height:auto;margin:20px auto;border:0;'
+  #|         );
+  #|       }
   #|       targets[index].replaceWith(image);
   #|     }
   #|     save('<!doctype html>\n' + doc.documentElement.outerHTML);

@@ -341,6 +341,18 @@ fn parse_inline_inner(
           if name == "" {
             push_diagnostic(diagnostics, Error, "Icon name is empty.", line)
             result.push(Text("<" + tag + ">"))
+          } else if !@types.icon_valid(name) {
+            push_diagnostic(
+              diagnostics,
+              Error,
+              "Unknown icon \"" +
+              name +
+              "\". Use one of: " +
+              @types.icon_names.join(", ") +
+              ".",
+              line,
+            )
+            result.push(Text("<" + tag + ">"))
           } else {
             result.push(Icon(name))
           }

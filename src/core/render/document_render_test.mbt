@@ -71,3 +71,36 @@ test "full email HTML keeps the reading column and has no scripts" {
   assert_true(html.contains("overflow-wrap: break-word"))
   assert_false(html.contains("<script"))
 }
+
+///|
+test "built-in icon renders as a theme-colored inline svg" {
+  let document = @types.Document::{
+    theme: Some("#123456"),
+    footer: None,
+    split: None,
+    letter: None,
+    palette: None,
+    blocks: [@types.Block::Paragraph([@types.Inline::Icon("mail")])],
+  }
+  let html = @render.render_document(
+    document,
+    @types.Profile::empty(),
+    Map([]),
+  )
+  assert_true(html.contains("<svg"))
+  assert_true(html.contains("viewBox=\"-2 -2 28 28\""))
+  assert_true(html.contains("stroke:#123456"))
+  assert_true(html.contains("aria-label=\"mail\""))
+  assert_true(html.contains("data-sigil-icon"))
+  assert_false(html.contains("<script"))
+}
+
+///|
+test "every whitelisted icon renders as an svg glyph" {
+  for name in @types.icon_names {
+    let html = @render.render_icon(name, "#2563EB")
+    assert_true(html.contains("<svg"))
+    assert_true(html.contains("data-sigil-icon"))
+  }
+  assert_false(@render.render_icon("rocket", "#2563EB").contains("<svg"))
+}

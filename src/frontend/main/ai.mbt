@@ -110,8 +110,12 @@ fn ai_markup_guide() -> String {
     #|- *strong* produces bold text at the same size.
     #|- **big** produces bold, larger text.
     #|- There is no italic, underline, strikethrough, nested emphasis, or triple emphasis.
-    #|- <icon:mail> inserts a built-in icon. Use only simple names such as mail, phone,
-    #|  link, calendar, location, or user.
+    #|- <icon:name> inserts a built-in icon. Choose only from: mail, phone, location,
+    #|  user, clock, globe, link, external-link, arrow-right, file, download, folder,
+    #|  copy, trash, calendar, send, reply, forward, attach, share, github, linkedin,
+    #|  twitter, instagram, facebook, youtube, check, info, alert, star, heart, bell,
+    #|  bookmark, flag, tag, lock, unlock, key, camera, image, video, music, mic, home,
+    #|  map, search, edit, refresh, settings, gift, credit-card.
     #|- <link:https://example.com> or <link:https://example.com|Read more> creates a link.
     #|  URLs must start with http://, https://, or mailto:.
     #|
