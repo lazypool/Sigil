@@ -63,10 +63,7 @@ fn render_inline(inline : Inline, accent : String) -> String {
       label +
       "</a>"
     }
-    Icon(name) =>
-      "<span style=\"display:inline-block;margin:0 2px;padding:0 5px;border:1px solid #d9d9d9;border-radius:3px;background:#fafafa;color:#666;font-size:12px;\">" +
-      escape_html(name) +
-      "</span>"
+    Icon(name) => render_icon(name, accent)
   }
 }
 
