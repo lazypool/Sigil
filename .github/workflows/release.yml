@@ -72,7 +72,7 @@ jobs:
 
       - name: Install Proton CLI and Warren
         run: |
-          moon install moonbit-community/proton_cli@0.9.0
+          moon install moonbit-community/proton_cli@0.9.1
           moon install moonbit-community/warren@0.4.5
 
       - name: Install Linux build dependencies
@@ -102,7 +102,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.proton
-          key: proton-0.9.0-${{ runner.os }}-${{ runner.arch }}
+          key: proton-0.9.1-${{ runner.os }}-${{ runner.arch }}
 
       - name: Prepare Proton runtime
         run: proton_cli setup
