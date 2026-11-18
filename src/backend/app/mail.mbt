@@ -206,9 +206,10 @@ async fn deliver(
   if header.code >= 200 && header.code < 300 {
     { ok: true, message: "Email sent.", }
   } else {
+    let body_text = body.text() catch { _ => "" }
     {
       ok: false,
-      message: response_error(stored.provider, header.code, body),
+      message: response_error(stored.provider, header.code, body_text),
     }
   }
 }
