@@ -144,10 +144,15 @@ jobs:
         run: |
           TAG="${{ steps.vars.outputs.tag }}"
           VERSION="${{ steps.vars.outputs.version }}"
+          shopt -s nullglob
+          ASSETS=()
+          for f in artifacts/*; do
+            [ -f "$f" ] && ASSETS+=("$f")
+          done
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" artifacts/* --clobber
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber
           else
-            gh release create "$TAG" artifacts/* \
+            gh release create "$TAG" "${ASSETS[@]}" \
               --title "Sigil ${VERSION}" \
               --generate-notes
           fi
