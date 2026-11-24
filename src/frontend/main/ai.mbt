@@ -240,7 +240,13 @@ fn ai_asset_inventory(model : Model) -> String {
 
 ///|
 fn ai_system_prompt(model : Model) -> String {
-  ai_markup_guide() + "\n\n" + ai_asset_inventory(model)
+  let memory = ai_memory_section(model.ai_memory)
+  let base = ai_markup_guide() + "\n\n" + ai_asset_inventory(model)
+  if memory == "" {
+    base
+  } else {
+    base + "\n\n" + memory
+  }
 }
 
 ///|
