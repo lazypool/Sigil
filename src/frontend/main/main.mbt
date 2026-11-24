@@ -57,6 +57,10 @@ struct Model {
   ai_target_doc_id : String
   ai_error : String
   ai_status : AiStatus
+  ai_asset_status : AiStatus
+  ai_asset_error : String
+  ai_asset_prompt : String
+  ai_asset_target_doc_id : String
   style_view : StyleKind
   style_doc_id : String
   mail : MailForm
@@ -137,6 +141,9 @@ enum Msg {
   SetAiApiKey(String)
   PolishAiEmail
   AiEmailPolished(String)
+  GenerateAiAsset
+  AiAssetPromptChanged(String)
+  AiAssetGenerated(String)
   ImportAvatar
   AvatarImported(String)
   RemoveAvatar
@@ -224,6 +231,10 @@ fn initial_model() -> Model {
     ai_target_doc_id: "",
     ai_error: "",
     ai_status: AiIdle,
+    ai_asset_status: AiIdle,
+    ai_asset_error: "",
+    ai_asset_prompt: "",
+    ai_asset_target_doc_id: "",
     style_view: LetterStyle,
     style_doc_id,
     mail: default_mail_form(),
@@ -895,6 +906,100 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
             }
           }
         }
+      }
+    }
+    GenerateAiAsset => {
+      match active_document(model) {
+        None =>
+          (
+            {
+              ..model,
+              ai_asset_status: AiError,
+              ai_asset_error: tr(
+                model.lang,
+                "Open an email before generating an asset.",
+                "请先打开一封邮件，再生成图表或表格。",
+              ),
+            },
+            @rabbita.none,
+          )
+        Some(document) =>
+          if model.ai_asset_status is AiLoading {
+            (model, @rabbita.none)
+          } else if model.ai.endpoint.trim() == "" ||
+            model.ai.model.trim() == "" {
+            (
+              {
+                ..model,
+                ai_asset_status: AiError,
+                ai_asset_error: tr(
+                  model.lang,
+                  "Set the AI endpoint and model in Settings.",
+                  "请先在设置中填写 AI 接口和模型。",
+                ),
+              },
+              @rabbita.none,
+            )
+          } else if model.ai_asset_prompt.trim() == "" {
+            (
+              {
+                ..model,
+                ai_asset_status: AiError,
+                ai_asset_error: tr(
+                  model.lang,
+                  "Describe the chart or table you want, or paste JSON/CSV.",
+                  "请描述你想要的图表或表格，或粘贴 JSON/CSV。",
+                ),
+              },
+              @rabbita.none,
+            )
+          } else {
+            let request = ai_asset_build_request(
+              model,
+              document,
+              model.ai_asset_prompt,
+            )
+            storage_set(
+              "sigil.ai.assets.pending",
+              @json.ToJson::to_json(request).stringify(),
+            )
+            (
+              {
+                ..model,
+                ai_asset_target_doc_id: document.id,
+                ai_asset_status: AiLoading,
+                ai_asset_error: "",
+              },
+              @rabbita.perform(
+                json => emit(AiAssetGenerated(json)),
+                ai_asset_task,
+              ),
+            )
+          }
+      }
+    }
+    AiAssetPromptChanged(prompt) =>
+      ({ ..model, ai_asset_prompt: prompt, }, @rabbita.none)
+    AiAssetGenerated(json) => {
+      let (next, error) = ai_asset_apply(model, json)
+      if error == "" {
+        (
+          {
+            ..next,
+            ai_asset_status: AiDone,
+            ai_asset_error: "",
+          },
+          @rabbita.none,
+        )
+      } else {
+        (
+          {
+            ..next,
+            ai_asset_status: AiError,
+            ai_asset_error: error,
+          },
+          @rabbita.none,
+        )
       }
     }
     ImportAvatar =>
@@ -2340,6 +2445,38 @@ fn ai_status_strip(model : Model) -> Html {
 }
 
 ///|
+fn ai_asset_status_strip(model : Model) -> Html {
+  if model.ai_asset_status is AiLoading {
+    div(
+      class="sigil-ai-strip",
+      [
+        span(
+          class="sigil-ai-status",
+          tr(model.lang, "Generating...", "生成中..."),
+        ),
+      ],
+    )
+  } else if model.ai_asset_error != "" {
+    div(class="sigil-ai-strip", [
+      span(class="sigil-ai-error", model.ai_asset_error),
+    ])
+  } else if model.ai_asset_status is AiDone {
+    div(class="sigil-ai-strip", [
+      span(
+        class="sigil-ai-status",
+        tr(
+          model.lang,
+          "Generated. Asset inserted at the cursor.",
+          "生成完成，已在光标处插入。",
+        ),
+      ),
+    ])
+  } else {
+    @html.nothing
+  }
+}
+
+///|
 fn editor_pane(
   emit : Emit[Msg],
   model : Model,
@@ -2378,9 +2515,26 @@ fn editor_pane(
               tr(model.lang, "AI polish", "AI 润色")
             },
           ),
+          button(
+            type_="button",
+            class="sigil-button is-small",
+            disabled=model.ai_asset_status is AiLoading,
+            title=tr(
+              model.lang,
+              "Generate a chart or table from the AI asset prompt",
+              "根据 AI 资产提示词生成图表或表格",
+            ),
+            on_click=emit(GenerateAiAsset),
+            if model.ai_asset_status is AiLoading {
+              tr(model.lang, "Generating...", "生成中...")
+            } else {
+              tr(model.lang, "AI chart/table", "AI 图表/表格")
+            },
+          ),
         ]),
       ]),
       ai_status_strip(model),
+      ai_asset_status_strip(model),
       div(class="sigil-editor-field", [
         highlighted_source(document.source),
         textarea(
@@ -3564,6 +3718,24 @@ fn settings_tab(emit : Emit[Msg], model : Model) -> Html {
                 "本地模型可留空",
               ),
               on_input=emit.map(key => SetAiApiKey(key)),
+            ),
+          ]),
+          label(class="sigil-field is-wide", [
+            span(
+              class="sigil-field-label",
+              tr(model.lang, "Asset prompt", "资产提示词"),
+            ),
+            textarea(
+              class="sigil-field-input",
+              style=["height:96px;padding:10px 12px;resize:vertical;"],
+              value=model.ai_asset_prompt,
+              placeholder=tr(
+                model.lang,
+                "Describe a chart or table, or paste JSON/CSV.",
+                "描述图表或表格，或粘贴 JSON/CSV。",
+              ),
+              on_input=emit.map(prompt => AiAssetPromptChanged(prompt)),
+              ([] : Array[Html]),
             ),
           ]),
         ]),
