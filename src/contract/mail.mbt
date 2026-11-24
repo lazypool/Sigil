@@ -26,12 +26,23 @@ pub(all) struct MailSettingsUpdate {
 }
 
 ///|
-/// One send request. `html` is the fully rendered, email-safe document.
+/// One user-selected file attachment, base64-encoded for the delivery API.
+#derive(ToJson, FromJson, Eq)
+pub(all) struct Attachment {
+  filename : String
+  mime : String
+  base64 : String
+}
+
+///|
+/// One send request. `html` is the fully rendered, email-safe document and
+/// `attachments` are any user-selected files to send alongside it.
 #derive(ToJson, FromJson)
 pub(all) struct SendEmailRequest {
   to : Array[String]
   subject : String
   html : String
+  attachments : Array[Attachment]
 }
 
 ///|
@@ -83,6 +94,12 @@ pub extend SendEmailRequest with @json.ToJson::{to_json}
 
 ///|
 pub extend SendEmailRequest with @json.FromJson::{from_json}
+
+///|
+pub extend Attachment with @json.ToJson::{to_json}
+
+///|
+pub extend Attachment with @json.FromJson::{from_json}
 
 ///|
 pub extend SendEmailReply with @json.ToJson::{to_json}

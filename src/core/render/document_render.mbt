@@ -79,6 +79,14 @@ fn render_inlines(inlines : Array[Inline], accent : String) -> String {
 ///|
 fn divider_html(split : String?, accent : String) -> String {
   match split {
+    Some(id) =>
+      match @themes.render_divider_pack(id, accent) {
+        Some(html) => return html
+        None => ()
+      }
+    None => ()
+  }
+  match split {
     Some("wave") =>
       "<div style=\"margin:26px 0;text-align:center;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:13px;letter-spacing:2px;line-height:1;\">" +
       "<span style=\"color:#CBD5E1;\">-----</span> " +
@@ -104,27 +112,36 @@ fn render_list(
   accent : String,
 ) -> String {
   let builder = StringBuilder()
-  match kind {
-    ListKind::Unordered =>
-      builder.write_string(
-        "<ul style=\"margin:0 0 14px;padding-left:24px;list-style:disc;\">",
-      )
-    ListKind::Ordered(start) =>
-      builder.write_string(
-        "<ol start=\"" +
-        start.to_string() +
-        "\" style=\"margin:0 0 14px;padding-left:24px;list-style:decimal;\">",
-      )
+  builder.write_string(
+    "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:0 0 14px;\">",
+  )
+  let mut number = match kind {
+    ListKind::Ordered(start) => start
+    ListKind::Unordered => 0
   }
   for item in items {
+    builder.write_string("<tr>")
+    match kind {
+      ListKind::Unordered =>
+        builder.write_string(
+          "<td style=\"vertical-align:top;padding:0 8px 6px 0;\">&#8226;</td>",
+        )
+      ListKind::Ordered(_) =>
+        builder.write_string(
+          "<td style=\"vertical-align:top;padding:0 8px 6px 0;\">" +
+          number.to_string() +
+          ".</td>",
+        )
+    }
     builder.write_string(
-      "<li style=\"margin:0 0 6px;\">" + render_inlines(item, accent) + "</li>",
+      "<td style=\"vertical-align:top;padding:0 0 6px;\">" +
+      render_inlines(item, accent) +
+      "</td>",
     )
+    builder.write_string("</tr>")
+    number = number + 1
   }
-  match kind {
-    ListKind::Unordered => builder.write_string("</ul>")
-    ListKind::Ordered(_) => builder.write_string("</ol>")
-  }
+  builder.write_string("</table>")
   builder.to_string()
 }
 
@@ -149,6 +166,10 @@ fn render_signature(
   profile : Profile,
   accent : String,
 ) -> String {
+  match @themes.render_signature_pack(theme, profile, accent) {
+    Some(html) => return html
+    None => ()
+  }
   ignore(theme)
   let name = if profile.name != "" {
     profile.name
@@ -280,6 +301,14 @@ fn render_footer(
   profile : Profile,
   accent : String,
 ) -> String {
+  match footer {
+    Some(id) =>
+      match @themes.render_footer_pack(id, profile, accent) {
+        Some(html) => return html
+        None => ()
+      }
+    None => ()
+  }
   match footer {
     Some("legal") => {
       let company = if profile.company != "" {

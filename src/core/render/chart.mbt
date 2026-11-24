@@ -36,7 +36,7 @@ fn chart_parse_number(text : String) -> Double? {
   let mut number = 0.0
   let mut seen = false
   while index < length && chars[index].is_ascii_digit() {
-    number = number * 10.0 + Double::from_int(chars[index].to_int() - 48)
+    number = number * 10.0 + (chars[index].to_int() - 48).to_double()
     seen = true
     index = index + 1
   }
@@ -44,7 +44,7 @@ fn chart_parse_number(text : String) -> Double? {
     index = index + 1
     let mut factor = 0.1
     while index < length && chars[index].is_ascii_digit() {
-      number = number + Double::from_int(chars[index].to_int() - 48) * factor
+      number = number + (chars[index].to_int() - 48).to_double() * factor
       factor = factor / 10.0
       seen = true
       index = index + 1
@@ -120,7 +120,7 @@ fn chart_parse_series_values(
   } else {
     let values = chart_split_values(raw)
     for index = 0; index < values.length(); index = index + 1 {
-      xs.push(Double::from_int(index))
+      xs.push(index.to_double())
       ys.push(values[index])
     }
   }
@@ -179,7 +179,7 @@ fn chart_parse_data(kind : String, text : String) -> ChartData {
   if series.is_empty() && !fallback_values.is_empty() {
     let xs : Array[Double] = []
     for index = 0; index < fallback_values.length(); index = index + 1 {
-      xs.push(Double::from_int(index))
+      xs.push(index.to_double())
     }
     series.push({ name: "Values", xs, ys: fallback_values })
     if labels.is_empty() {
@@ -401,7 +401,7 @@ fn chart_y_grid(
 ) -> String {
   let builder = StringBuilder()
   for index = 0; index <= 4; index = index + 1 {
-    let ratio = Double::from_int(index) / 4.0
+    let ratio = index.to_double() / 4.0
     let y = top + height * ratio
     let value = max - (max - min) * ratio
     builder.write_string(
@@ -461,7 +461,7 @@ fn chart_category_labels(
     if step > 1 && index % step != 0 {
       continue
     }
-    let x = left + (Double::from_int(index) + 0.5) * width / Double::from_int(count)
+    let x = left + (index.to_double() + 0.5) * width / count.to_double()
     let text = if index < labels.length() {
       labels[index]
     } else {
@@ -483,7 +483,7 @@ fn chart_x_grid(
 ) -> String {
   let builder = StringBuilder()
   for index = 0; index <= 4; index = index + 1 {
-    let ratio = Double::from_int(index) / 4.0
+    let ratio = index.to_double() / 4.0
     let x = left + width * ratio
     let value = min + (max - min) * ratio
     builder.write_string(
@@ -516,9 +516,9 @@ fn chart_legend(
     return ""
   }
   let builder = StringBuilder()
-  let slot = width / Double::from_int(series.length())
+  let slot = width / series.length().to_double()
   for index = 0; index < series.length(); index = index + 1 {
-    let x = left + Double::from_int(index) * slot
+    let x = left + index.to_double() * slot
     builder.write_string(
       "<rect x=\"" +
       chart_number(x) +
@@ -590,7 +590,7 @@ fn chart_render_bars(data : ChartData, palette_name : String, stacked : Bool) ->
   let builder = StringBuilder()
   builder.write_string(chart_y_grid(left, top, width, height, min, max))
   builder.write_string(chart_axis_baseline(0.0, left, top, width, height, min, max))
-  let group_width = width / Double::from_int(count)
+  let group_width = width / count.to_double()
   if stacked {
     let positive = Array::make(count, 0.0)
     let negative = Array::make(count, 0.0)
@@ -613,13 +613,13 @@ fn chart_render_bars(data : ChartData, palette_name : String, stacked : Bool) ->
         let y2 = chart_scale_y(base + value, min, max, top, height)
         let rect_y = if y1 < y2 { y1 } else { y2 }
         let rect_height = if y1 < y2 { y2 - y1 } else { y1 - y2 }
-        let x = left + Double::from_int(index) * group_width + group_width * 0.14
+        let x = left + index.to_double() * group_width + group_width * 0.14
         builder.write_string(chart_rect(x, rect_y, bar_width, rect_height, color, 1.0))
       }
     }
   } else {
     let series_count = data.series.length()
-    let bar_width = group_width * 0.72 / Double::from_int(series_count)
+    let bar_width = group_width * 0.72 / series_count.to_double()
     for series_index = 0; series_index < series_count; series_index = series_index + 1 {
       let item = data.series[series_index]
       let color = palette[series_index % palette.length()]
@@ -630,9 +630,9 @@ fn chart_render_bars(data : ChartData, palette_name : String, stacked : Bool) ->
         let rect_y = if y < zero { y } else { zero }
         let rect_height = if y < zero { zero - y } else { y - zero }
         let x = left +
-          Double::from_int(index) * group_width +
+          index.to_double() * group_width +
           group_width * 0.14 +
-          Double::from_int(series_index) * bar_width
+          series_index.to_double() * bar_width
         builder.write_string(chart_rect(x, rect_y, bar_width, rect_height, color, 1.0))
       }
     }
@@ -660,7 +660,7 @@ fn chart_line_points(
     let x = if count <= 1 {
       left + width / 2.0
     } else {
-      left + Double::from_int(index) * width / Double::from_int(count - 1)
+      left + index.to_double() * width / (count - 1).to_double()
     }
     let y = chart_scale_y(item.ys[index], min, max, top, height)
     points.push((x, y))
@@ -951,7 +951,7 @@ fn chart_render_pie(data : ChartData, palette_name : String, donut : Bool) -> St
     if values[index] <= 0.0 {
       continue
     }
-    let y = 96.0 + Double::from_int(index) * 26.0
+    let y = 96.0 + index.to_double() * 26.0
     builder.write_string(
       "<rect x=\"400\" y=\"" +
       chart_number(y - 10.0) +
@@ -1007,11 +1007,11 @@ fn chart_render_radar(data : ChartData, palette_name : String) -> String {
     }
   }
   let angle_at = fn(index : Int) -> Double {
-    -@math.PI / 2.0 + 2.0 * @math.PI * Double::from_int(index) / Double::from_int(count)
+    -@math.PI / 2.0 + 2.0 * @math.PI * index.to_double() / count.to_double()
   }
   let builder = StringBuilder()
   for level = 1; level <= 4; level = level + 1 {
-    let level_radius = radius * Double::from_int(level) / 4.0
+    let level_radius = radius * level.to_double() / 4.0
     let points = StringBuilder()
     for index = 0; index < count; index = index + 1 {
       if index > 0 {
@@ -1119,16 +1119,16 @@ fn chart_render_heatmap(data : ChartData, palette_name : String) -> String {
   let left = 160.0
   let top = 92.0
   let width = 530.0
-  let cell_width = width / Double::from_int(columns)
-  let cell_height = if rows > 8 { 280.0 / Double::from_int(rows) } else { 32.0 }
+  let cell_width = width / columns.to_double()
+  let cell_height = if rows > 8 { 280.0 / rows.to_double() } else { 32.0 }
   let builder = StringBuilder()
   for column = 0; column < columns; column = column + 1 {
-    let x = left + (Double::from_int(column) + 0.5) * cell_width
+    let x = left + (column.to_double() + 0.5) * cell_width
     builder.write_string(chart_label(x, top - 12.0, data.labels[column], 11, "middle", "#555555"))
   }
   for row = 0; row < rows; row = row + 1 {
     let item = data.series[row]
-    let y = top + Double::from_int(row) * cell_height
+    let y = top + row.to_double() * cell_height
     builder.write_string(
       chart_label(left - 12.0, y + cell_height / 2.0 + 4.0, item.name, 11, "end", "#555555"),
     )
@@ -1136,7 +1136,7 @@ fn chart_render_heatmap(data : ChartData, palette_name : String) -> String {
       let value = if column < item.ys.length() { item.ys[column] } else { minimum }
       let ratio = (value - minimum) / (maximum - minimum)
       let opacity = 0.08 + ratio * 0.82
-      let x = left + Double::from_int(column) * cell_width
+      let x = left + column.to_double() * cell_width
       builder.write_string(
         "<rect x=\"" +
         chart_number(x) +

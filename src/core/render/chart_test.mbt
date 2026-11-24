@@ -109,6 +109,7 @@ test "chart blocks render through the document renderer" {
     letter: None,
     palette: Some("ocean"),
     blocks: [@types.Block::Chart("bar", "title: Growth\nA: 10\nB: 20")],
+    lang: None,
   }
   let html = @render.render_document(
     document,
@@ -145,6 +146,7 @@ test "chart references render from the chart library" {
     letter: None,
     palette: Some("sunset"),
     blocks: [@types.Block::ChartRef("growth")],
+    lang: None,
   }
   let html = @render.render_document_with_libraries(
     document,

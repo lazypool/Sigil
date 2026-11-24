@@ -4111,6 +4111,39 @@ textarea {
   line-height: 1.45;
 }
 
+.sigil-attachment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 10px;
+  border: 1px solid var(--sigil-border);
+  border-radius: 8px;
+  background: var(--sigil-bg);
+}
+
+.sigil-attachment-row + .sigil-attachment-row {
+  margin-top: 6px;
+}
+
+.sigil-attachment-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: #dbe0e7;
+}
+
+.theme-light .sigil-attachment-row {
+  border-color: #dfe1e5;
+  background: #f6f7f8;
+}
+
+.theme-light .sigil-attachment-name {
+  color: #3a3f45;
+}
+
 .sigil-mail-advanced {
   display: flex;
   flex-direction: column;

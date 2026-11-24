@@ -93,11 +93,13 @@ fn send_request_json(
   to : Array[String],
   subject : String,
   html : String,
+  attachments : Array[@contract.Attachment],
 ) -> String {
   @json.ToJson::to_json(@contract.SendEmailRequest::{
     to,
     subject,
     html,
+    attachments,
   }).stringify()
 }
 
@@ -179,6 +181,84 @@ fn parse_recipients(input : String) -> Array[String]? {
 }
 
 ///|
+extern "js" fn open_attach_picker() -> Unit = "() => { const el = document.getElementById('sigil-attach-input'); if (!el) return; el.value = ''; el.click(); }"
+
+///|
+extern "js" fn read_attach_input_promise() -> @js_async.Promise[String] =
+  #| () => new Promise((resolve) => {
+  #|   const input = document.getElementById('sigil-attach-input');
+  #|   if (!input || !input.files || input.files.length === 0) {
+  #|     resolve('[]');
+  #|     return;
+  #|   }
+  #|   const files = Array.from(input.files);
+  #|   (async () => {
+  #|     const items = [];
+  #|     for (const file of files) {
+  #|       const dataUrl = await new Promise((res) => {
+  #|         const reader = new FileReader();
+  #|         reader.onload = () => res(String(reader.result || ''));
+  #|         reader.onerror = () => res('');
+  #|         reader.readAsDataURL(file);
+  #|       });
+  #|       if (dataUrl) {
+  #|         const comma = dataUrl.indexOf(',');
+  #|         const header = comma >= 0 ? dataUrl.slice(0, comma) : '';
+  #|         const match = header.match(/data:([^;]+);/);
+  #|         const mime = match ? match[1] : 'application/octet-stream';
+  #|         const base64 = comma >= 0 ? dataUrl.slice(comma + 1) : '';
+  #|         items.push({ filename: file.name || 'attachment', mime: mime, base64: base64 });
+  #|       }
+  #|     }
+  #|     input.value = '';
+  #|     resolve(JSON.stringify(items));
+  #|   })();
+  #| })
+
+///|
+async fn import_attachments_task() -> String noraise {
+  @js_async.run_promise(_ => read_attach_input_promise()) catch {
+    _ => "[]"
+  }
+}
+
+///|
+fn parse_attachments(json : String) -> Array[@contract.Attachment] {
+  let parsed = @json.parse(json) catch { _ => return [] }
+  @json.from_json(parsed) catch { _ => [] }
+}
+
+///|
+fn attachments_view(emit : Emit[Msg], model : Model) -> Html {
+  if model.send_attachments.is_empty() {
+    return span(
+      class="sigil-field-hint",
+      tr(model.lang, "No attachments.", "尚未添加附件。"),
+    )
+  }
+  let rows : Array[Html] = []
+  let mut index = 0
+  for attachment in model.send_attachments {
+    rows.push(
+      div(
+        class="sigil-attachment-row",
+        [
+          span(class="sigil-attachment-name", attachment.filename),
+          button(
+            type_="button",
+            class="sigil-button is-small is-danger",
+            on_click=emit(RemoveAttachment(index)),
+            tr(model.lang, "Remove", "移除"),
+          ),
+        ],
+      ),
+    )
+    index = index + 1
+  }
+  div(rows)
+}
+
+///|
 extern "js" fn invoke_bridge_promise(
   op : String,
   payload : String,
@@ -251,6 +331,7 @@ async fn send_mail_task(
   html : String,
   to : String,
   subject : String,
+  attachments : Array[@contract.Attachment],
 ) -> String noraise {
   let prepared = @js_async.run_promise(_ => prepare_email_html(html)) catch {
     _ => html
@@ -258,7 +339,7 @@ async fn send_mail_task(
   match parse_recipients(to) {
     None => "{\"ok\":false,\"message\":\"Add at least one valid recipient.\"}"
     Some(addresses) => {
-      let payload = send_request_json(addresses, subject, prepared)
+      let payload = send_request_json(addresses, subject, prepared, attachments)
       bridge_task("app:send_email", payload)
     }
   }
@@ -744,6 +825,22 @@ fn send_dialog(emit : Emit[Msg], model : Model) -> Html {
           class="sigil-field-input",
           value=model.send_subject,
           on_input=emit.map(text => SendSubjectChanged(text)),
+        ),
+      ]),
+      div(class="sigil-field", [
+        span(
+          class="sigil-field-label",
+          tr(model.lang, "Attachments", "附件"),
+        ),
+        attachments_view(emit, model),
+        button(
+          type_="button",
+          class="sigil-button is-small",
+          attrs=@html.Attrs::build().on_click(_ => {
+            open_attach_picker()
+            @rabbita.none
+          }),
+          [span(tr(model.lang, "Attach files", "添加附件"))],
         ),
       ]),
       notice,

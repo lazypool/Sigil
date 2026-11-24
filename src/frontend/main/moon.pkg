@@ -1,8 +1,10 @@
 import {
   "xiao/sigil/core/highlight",
   "xiao/sigil/core/render",
+  "xiao/sigil/core/convert",
   "xiao/sigil/core/parser",
   "xiao/sigil/core/types",
+  "xiao/sigil/core/keymap",
   "xiao/sigil/contract",
   "moonbit-community/rabbita",
   "moonbit-community/rabbita/dom",

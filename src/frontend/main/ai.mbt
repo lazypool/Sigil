@@ -17,23 +17,13 @@ enum AiStatus {
 }
 
 ///|
-/// Shape sent to the browser-side fetch helper.
-#derive(ToJson)
-struct AiRequest {
-  endpoint : String
-  api_key : String
-  model : String
-  system : String
-  prompt : String
-  temperature : Double
-}
-
-///|
-/// Normalized answer returned by the browser-side fetch helper.
+/// Normalized answer returned by the browser-side fetch helper. `tool_calls`
+/// is a JSON array of `{id, name, arguments}` when the model asked for tools.
 #derive(FromJson)
 struct AiReply {
   ok : Bool
   content : String
+  tool_calls : String
   error : String
 }
 
@@ -239,25 +229,174 @@ fn ai_asset_inventory(model : Model) -> String {
 }
 
 ///|
-fn ai_system_prompt(model : Model) -> String {
-  ai_markup_guide() + "\n\n" + ai_asset_inventory(model)
+fn ai_document_lang(document : EmailDoc) -> String {
+  match @parser.parse(document.source).document.lang {
+    Some(lang) => lang
+    None => "unknown"
+  }
 }
 
 ///|
-fn ai_build_request(model : Model, document : EmailDoc) -> AiRequest {
-  let user_prompt = "Current document title: " +
+fn ai_system_prompt(model : Model, document : EmailDoc) -> String {
+  let memory = ai_memory_section(model.ai_memory)
+  let lang = ai_document_lang(document)
+  let lang_note = if lang == "zh" {
+    "The document is declared Chinese (@lang zh). Keep the body in Chinese and write the translation/summary block in English."
+  } else if lang == "en" {
+    "The document is declared English (@lang en). Keep the body in English and write the translation/summary block in Chinese."
+  } else {
+    ""
+  }
+  let base = ai_markup_guide() + "\n\n" + ai_asset_inventory(model)
+  let with_lang = if lang_note == "" {
+    base
+  } else {
+    base + "\n\n" + lang_note
+  }
+  if memory == "" {
+    with_lang
+  } else {
+    with_lang + "\n\n" + memory
+  }
+}
+
+///|
+fn ai_json_escape(text : String) -> String {
+  let builder = StringBuilder()
+  for ch in text {
+    if ch == '"' {
+      builder.write_string("\\\"")
+    } else if ch == '\\' {
+      builder.write_string("\\\\")
+    } else if ch == '\n' {
+      builder.write_string("\\n")
+    } else if ch == '\r' {
+      builder.write_string("\\r")
+    } else if ch == '\t' {
+      builder.write_string("\\t")
+    } else {
+      builder.write_char(ch)
+    }
+  }
+  builder.to_string()
+}
+
+///|
+fn ai_system_message(content : String) -> String {
+  "{\"role\":\"system\",\"content\":\"" + ai_json_escape(content) + "\"}"
+}
+
+///|
+fn ai_user_message(content : String) -> String {
+  "{\"role\":\"user\",\"content\":\"" + ai_json_escape(content) + "\"}"
+}
+
+///|
+fn ai_tool_message(id : String, content : String) -> String {
+  "{\"role\":\"tool\",\"tool_call_id\":\"" +
+  ai_json_escape(id) +
+  "\",\"content\":\"" +
+  ai_json_escape(content) +
+  "\"}"
+}
+
+///|
+fn ai_tool_definitions() -> String {
+  "[{\"type\":\"function\",\"function\":{\"name\":\"create_table\",\"description\":\"Create a table asset from CSV/JSON data, save it to the library, and return the <table:NAME> reference to place in the email. Use for tabular data.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"data\":{\"type\":\"string\",\"description\":\"CSV or JSON data (array of objects, 2D array, or key/value object).\"}},\"required\":[\"data\"]}}},{\"type\":\"function\",\"function\":{\"name\":\"create_chart\",\"description\":\"Create a chart and return the inline :::chart block to place in the email.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"kind\":{\"type\":\"string\",\"enum\":[\"bar\",\"stacked\",\"line\",\"area\",\"pie\",\"donut\",\"scatter\",\"radar\",\"heatmap\"]},\"data\":{\"type\":\"string\",\"description\":\"CSV or JSON data for the chart.\"}},\"required\":[\"kind\",\"data\"]}}}]"
+}
+
+///|
+#derive(Eq)
+struct AiToolCall {
+  id : String
+  name : String
+  arguments : String
+}
+
+///|
+/// Parse the JSON array of tool calls returned by the model.
+fn ai_parse_tool_calls(tool_calls_json : String) -> Array[AiToolCall] {
+  let result : Array[AiToolCall] = []
+  let parsed = @json.parse(tool_calls_json) catch { _ => return result }
+  match parsed {
+    @json.Json::Array(items) =>
+      for item in items {
+        match item {
+          @json.Json::Object(map) => {
+            let id = match map.get("id") {
+              Some(@json.Json::String(s)) => s
+              _ => ""
+            }
+            let name = match map.get("name") {
+              Some(@json.Json::String(s)) => s
+              _ => ""
+            }
+            let arguments = match map.get("arguments") {
+              Some(@json.Json::String(s)) => s
+              _ => "{}"
+            }
+            result.push({ id, name, arguments, })
+          }
+          _ => ()
+        }
+      }
+    _ => ()
+  }
+  result
+}
+
+///|
+/// Build the assistant tool-call message plus one tool result per call, to be
+/// appended to the running conversation.
+fn ai_build_tool_turn(
+  calls : Array[AiToolCall],
+  results : Array[String],
+) -> String {
+  let call_json : Array[String] = []
+  for call in calls {
+    call_json.push(
+      "{\"id\":\"" +
+      ai_json_escape(call.id) +
+      "\",\"type\":\"function\",\"function\":{\"name\":\"" +
+      ai_json_escape(call.name) +
+      "\",\"arguments\":\"" +
+      ai_json_escape(call.arguments) +
+      "\"}}",
+    )
+  }
+  let assistant = "{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[" +
+    call_json.join(",") +
+    "]"
+  let builder = StringBuilder()
+  builder.write_string(assistant)
+  let mut index = 0
+  for call in calls {
+    let content = if index < results.length() { results[index] } else { "" }
+    builder.write_string("," + ai_tool_message(call.id, content))
+    index = index + 1
+  }
+  builder.to_string()
+}
+
+///|
+fn ai_agent_initial_messages(model : Model, document : EmailDoc) -> String {
+  let user_prompt = "Document title: " +
     document.title +
     "\n\nCurrent Sigil source:\n" +
     document.source +
-    "\n\nPolish this document according to the rules and apply every %% instruction. Return the complete final Sigil document and nothing else."
-  {
-    endpoint: model.ai.endpoint.trim().to_owned(),
-    api_key: model.ai.api_key.trim().to_owned(),
-    model: model.ai.model.trim().to_owned(),
-    system: ai_system_prompt(model),
-    prompt: user_prompt,
-    temperature: 0.4,
-  }
+    "\n\nPolish this document according to the rules and apply every %% instruction. If the email needs a table or chart, create it with a tool and place its reference in the final document. Return the complete final Sigil document and nothing else."
+  "[" +
+  ai_system_message(ai_system_prompt(model, document)) +
+  "," +
+  ai_user_message(user_prompt) +
+  "]"
+}
+
+///|
+/// Append an assistant tool-call message plus its tool results onto the running
+/// message array (a JSON array string).
+fn ai_agent_append_tool_turn(messages : String, turn : String) -> String {
+  messages[0: messages.length() - 1].to_owned() + "," + turn + "]"
 }
 
 ///|
@@ -329,10 +468,10 @@ fn extract_ai_markup(raw : String) -> String {
 ///|
 fn parse_ai_reply(raw : String) -> AiReply {
   let parsed = @json.parse(raw) catch {
-    _ => return { ok: false, content: "", error: "Invalid response from the model." }
+    _ => return { ok: false, content: "", tool_calls: "", error: "Invalid response from the model." }
   }
   @json.from_json(parsed) catch {
-    _ => { ok: false, content: "", error: "Invalid response from the model." }
+    _ => { ok: false, content: "", tool_calls: "", error: "Invalid response from the model." }
   }
 }
 
@@ -358,41 +497,57 @@ fn strip_ai_instruction_lines(markup : String) -> String {
 ///|
 extern "js" fn ai_fetch_promise(request_json : String) -> @js_async.Promise[String] =
   #| (requestJson) => new Promise((resolve) => {
-  #|   const finish = (ok, content, error) => resolve(JSON.stringify({
+  #|   const finish = (ok, content, tool_calls, error) => resolve(JSON.stringify({
   #|     ok: ok,
   #|     content: content || '',
+  #|     tool_calls: tool_calls || '',
   #|     error: error || ''
   #|   }));
   #|   let request;
   #|   try {
   #|     request = JSON.parse(requestJson);
   #|   } catch (error) {
-  #|     finish(false, '', 'Invalid AI request.');
+  #|     finish(false, '', '', 'Invalid AI request.');
   #|     return;
   #|   }
   #|   const endpoint = String(request.endpoint || '').trim();
   #|   const model = String(request.model || '').trim();
   #|   if (!endpoint) {
-  #|     finish(false, '', 'Set an API endpoint in Settings.');
+  #|     finish(false, '', '', 'Set an API endpoint in Settings.');
   #|     return;
   #|   }
   #|   if (!model) {
-  #|     finish(false, '', 'Set a model name in Settings.');
+  #|     finish(false, '', '', 'Set a model name in Settings.');
   #|     return;
   #|   }
   #|   const headers = { 'Content-Type': 'application/json' };
   #|   if (request.api_key) {
   #|     headers['Authorization'] = 'Bearer ' + request.api_key;
   #|   }
+  #|   let messages = [];
+  #|   try {
+  #|     const raw = request.messages || '[]';
+  #|     messages = Array.isArray(raw) ? raw : JSON.parse(raw);
+  #|   } catch (error) {
+  #|     finish(false, '', '', 'Invalid messages.');
+  #|     return;
+  #|   }
+  #|   let tools = [];
+  #|   try {
+  #|     const rawTools = request.tools || '[]';
+  #|     tools = Array.isArray(rawTools) ? rawTools : JSON.parse(rawTools);
+  #|   } catch (error) {
+  #|     tools = [];
+  #|   }
   #|   const body = {
   #|     model: model,
-  #|     messages: [
-  #|       { role: 'system', content: request.system || '' },
-  #|       { role: 'user', content: request.prompt || '' }
-  #|     ],
+  #|     messages: messages,
   #|     temperature: typeof request.temperature === 'number' ? request.temperature : 0.4,
   #|     stream: false
   #|   };
+  #|   if (tools.length > 0) {
+  #|     body.tools = tools;
+  #|   }
   #|   fetch(endpoint, {
   #|     method: 'POST',
   #|     headers: headers,
@@ -411,11 +566,21 @@ extern "js" fn ai_fetch_promise(request_json : String) -> @js_async.Promise[Stri
   #|         if (data && data.error) {
   #|           detail = data.error.message || String(data.error);
   #|         }
-  #|         finish(false, '', 'HTTP ' + response.status + ': ' + detail);
+  #|         finish(false, '', '', 'HTTP ' + response.status + ': ' + detail);
   #|         return;
   #|       }
   #|       const choice = data && data.choices && data.choices[0];
   #|       const message = choice && choice.message;
+  #|       const tool_calls = message && Array.isArray(message.tool_calls) ? message.tool_calls : [];
+  #|       if (tool_calls.length > 0) {
+  #|         const normalized = tool_calls.map((tc) => ({
+  #|           id: tc.id || ('call_' + Math.random().toString(36).slice(2)),
+  #|           name: (tc.function && tc.function.name) || '',
+  #|           arguments: (tc.function && tc.function.arguments) || '{}'
+  #|         }));
+  #|         finish(true, '', JSON.stringify(normalized), '');
+  #|         return;
+  #|       }
   #|       let content = message && message.content;
   #|       if (Array.isArray(content)) {
   #|         content = content.map((part) => {
@@ -424,25 +589,39 @@ extern "js" fn ai_fetch_promise(request_json : String) -> @js_async.Promise[Stri
   #|         }).join('');
   #|       }
   #|       if (typeof content !== 'string' || content.trim() === '') {
-  #|         finish(false, '', 'The model returned an empty response.');
+  #|         finish(false, '', '', 'The model returned an empty response.');
   #|         return;
   #|       }
-  #|       finish(true, content, '');
+  #|       finish(true, content, '', '');
   #|     })
   #|     .catch((error) => {
   #|       const message = error && error.message ? error.message : String(error);
-  #|       finish(false, '', 'Network error: ' + message);
+  #|       finish(false, '', '', 'Network error: ' + message);
   #|     });
   #| })
 
 ///|
-async fn ai_compose_task() -> String noraise {
-  let request = storage_get("sigil.ai.pending")
-  if request == "" {
-    return "{\"ok\":false,\"content\":\"\",\"error\":\"No AI request is pending.\"}"
+/// Read the pending agent conversation and send one round to the model.
+async fn ai_agent_task() -> String noraise {
+  let messages = storage_get("sigil.ai.messages")
+  if messages == "" {
+    return "{\"ok\":false,\"content\":\"\",\"tool_calls\":\"\",\"error\":\"No AI request is pending.\"}"
   }
-  storage_remove("sigil.ai.pending")
+  let endpoint = storage_get("sigil.ai.endpoint")
+  let model = storage_get("sigil.ai.model")
+  let api_key = storage_get("sigil.ai.api_key")
+  let request = "{\"endpoint\":\"" +
+    ai_json_escape(endpoint) +
+    "\",\"api_key\":\"" +
+    ai_json_escape(api_key) +
+    "\",\"model\":\"" +
+    ai_json_escape(model) +
+    "\",\"temperature\":0.4,\"messages\":" +
+    messages +
+    ",\"tools\":" +
+    ai_tool_definitions() +
+    "}"
   @js_async.run_promise(_ => ai_fetch_promise(request)) catch {
-    _ => "{\"ok\":false,\"content\":\"\",\"error\":\"AI request failed.\"}"
+    _ => "{\"ok\":false,\"content\":\"\",\"tool_calls\":\"\",\"error\":\"AI request failed.\"}"
   }
 }

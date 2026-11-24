@@ -53,6 +53,7 @@ struct Model {
   profile_draft : Profile
   lang : Lang
   prefs : Prefs
+  vim_mode : @keymap.VimMode
   ai : AiConfig
   ai_target_doc_id : String
   ai_error : String
@@ -70,6 +71,11 @@ struct Model {
   send_busy : Bool
   send_notice : String
   send_notice_ok : Bool
+  send_attachments : Array[@contract.Attachment]
+  ai_memory : AiMemory
+  ai_memory_key : String
+  ai_memory_value : String
+  ai_memory_kind : String
 }
 
 ///|
@@ -136,7 +142,7 @@ enum Msg {
   SetAiModel(String)
   SetAiApiKey(String)
   PolishAiEmail
-  AiEmailPolished(String)
+  AiAgentReplied(String)
   ImportAvatar
   AvatarImported(String)
   RemoveAvatar
@@ -149,6 +155,9 @@ enum Msg {
   SendSubjectChanged(String)
   BeginSend
   SendFinished(String)
+  AttachFiles
+  AttachmentsSelected(String)
+  RemoveAttachment(Int32)
   OpenDeliverySettings
   MailLoaded(String)
   MailFieldChanged(MailField, String)
@@ -159,6 +168,14 @@ enum Msg {
   MailTestToChanged(String)
   ToggleMailAdvanced
   CopyMailHelpLink
+  AiMemoryKeyChanged(String)
+  AiMemoryValueChanged(String)
+  AiMemoryKindChanged(String)
+  AiMemoryAdd
+  AiMemoryForget(String)
+  AiMemoryClear
+  VimKey(String, Bool, Bool, Bool)
+  ToggleVim
 }
 
 ///|
@@ -183,6 +200,7 @@ fn initial_model() -> Model {
   }
   let library = load_library(library_doc_id)
   save_library_context(library_doc_id)
+  let prefs = load_prefs()
   let style_doc_id = match
     find_document(workspace.documents, workspace.active_tab) {
     Some(document) => document.id
@@ -219,7 +237,8 @@ fn initial_model() -> Model {
     profile,
     profile_draft: profile,
     lang,
-    prefs: load_prefs(),
+    prefs,
+    vim_mode: if prefs.vim { @keymap.Normal } else { @keymap.Insert },
     ai: load_ai_config(),
     ai_target_doc_id: "",
     ai_error: "",
@@ -237,6 +256,11 @@ fn initial_model() -> Model {
     send_busy: false,
     send_notice: "",
     send_notice_ok: false,
+    send_attachments: [],
+    ai_memory: load_ai_memory(),
+    ai_memory_key: "",
+    ai_memory_value: "",
+    ai_memory_kind: "",
   }
 }
 
@@ -515,12 +539,44 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
         send_busy: false,
         send_notice: "",
         send_notice_ok: false,
+        send_attachments: [],
       },
       @rabbita.none,
     )
     SendToChanged(value) => ({ ..model, send_to: value, }, @rabbita.none)
     SendSubjectChanged(value) =>
       ({ ..model, send_subject: value, }, @rabbita.none)
+    AttachFiles =>
+      (
+        model,
+        @rabbita.perform(
+          data => emit(AttachmentsSelected(data)),
+          import_attachments_task,
+        ),
+      )
+    AttachmentsSelected(json) => {
+      let incoming = parse_attachments(json)
+      if incoming.is_empty() {
+        (model, @rabbita.none)
+      } else {
+        let merged = model.send_attachments.copy()
+        for attachment in incoming {
+          merged.push(attachment)
+        }
+        ({ ..model, send_attachments: merged, }, @rabbita.none)
+      }
+    }
+    RemoveAttachment(index) => {
+      let filtered : Array[@contract.Attachment] = []
+      let mut i = 0
+      for attachment in model.send_attachments {
+        if i != index {
+          filtered.push(attachment)
+        }
+        i = i + 1
+      }
+      ({ ..model, send_attachments: filtered, }, @rabbita.none)
+    }
     BeginSend =>
       match active_document(model) {
         None => (model, @rabbita.none)
@@ -574,7 +630,7 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
             (
               next,
               @rabbita.perform(data => emit(SendFinished(data)), async fn() -> String noraise {
-                send_mail_task(html, model.send_to, subject)
+                send_mail_task(html, model.send_to, subject, model.send_attachments)
               }),
             )
           }
@@ -739,6 +795,39 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
         @rabbita.none,
       )
     }
+    AiMemoryKeyChanged(value) =>
+      ({ ..model, ai_memory_key: value, }, @rabbita.none)
+    AiMemoryValueChanged(value) =>
+      ({ ..model, ai_memory_value: value, }, @rabbita.none)
+    AiMemoryKindChanged(value) =>
+      ({ ..model, ai_memory_kind: value, }, @rabbita.none)
+    AiMemoryAdd => {
+      let memory = ai_memory_put(
+        model.ai_memory,
+        model.ai_memory_key,
+        model.ai_memory_value,
+        model.ai_memory_kind,
+      )
+      save_ai_memory(memory)
+      (
+        {
+          ..model,
+          ai_memory: memory,
+          ai_memory_key: "",
+          ai_memory_value: "",
+        },
+        @rabbita.none,
+      )
+    }
+    AiMemoryForget(key) => {
+      let memory = ai_memory_forget(model.ai_memory, key)
+      save_ai_memory(memory)
+      ({ ..model, ai_memory: memory, }, @rabbita.none)
+    }
+    AiMemoryClear => {
+      let memory = ai_memory_clear()
+      ({ ..model, ai_memory: memory, }, @rabbita.none)
+    }
     SetTheme(theme) => {
       let prefs = { ..model.prefs, theme, }
       save_prefs(prefs)
@@ -816,10 +905,10 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
               @rabbita.none,
             )
           } else {
-            let request = ai_build_request(model, document)
+            save_ai_config(model.ai)
             storage_set(
-              "sigil.ai.pending",
-              @json.ToJson::to_json(request).stringify(),
+              "sigil.ai.messages",
+              ai_agent_initial_messages(model, document),
             )
             (
               {
@@ -829,72 +918,24 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
                 ai_error: "",
               },
               @rabbita.perform(
-                json => emit(AiEmailPolished(json)),
-                ai_compose_task,
+                json => emit(AiAgentReplied(json)),
+                ai_agent_task,
               ),
             )
           }
       }
     }
-    AiEmailPolished(json) => {
+    AiAgentReplied(json) => {
       let reply = parse_ai_reply(json)
       if !reply.ok {
         (
-          {
-            ..model,
-            ai_status: AiError,
-            ai_error: reply.error,
-          },
+          { ..model, ai_status: AiError, ai_error: reply.error, },
           @rabbita.none,
         )
+      } else if reply.tool_calls.trim() != "" {
+        ai_agent_tool_turn(model, reply.tool_calls, emit)
       } else {
-        let markup = strip_ai_instruction_lines(
-          extract_ai_markup(reply.content),
-        )
-        if markup == "" || ai_is_markdown_output(markup) {
-          (
-            {
-              ..model,
-              ai_status: AiError,
-              ai_error: tr(
-                model.lang,
-                "The model returned Markdown instead of Sigil markup. Please try again.",
-                "模型返回了 Markdown 而不是 Sigil 标记，请重试。",
-              ),
-            },
-            @rabbita.none,
-          )
-        } else {
-          match find_document(model.documents, model.ai_target_doc_id) {
-            None =>
-              (
-                {
-                  ..model,
-                  ai_status: AiError,
-                  ai_error: tr(
-                    model.lang,
-                    "The email being polished was closed.",
-                    "正在润色的邮件已被关闭。",
-                  ),
-                },
-                @rabbita.none,
-              )
-            Some(document) => {
-              let next = {
-                ..model,
-                documents: with_document_source(
-                  model.documents,
-                  document.id,
-                  markup,
-                ),
-                ai_status: AiDone,
-                ai_error: "",
-              }
-              persist(next)
-              (next, @rabbita.none)
-            }
-          }
-        }
+        ai_agent_finish(model, reply.content)
       }
     }
     ImportAvatar =>
@@ -1665,6 +1706,14 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
       save_lang(lang)
       ({ ..model, lang, }, @rabbita.none)
     }
+    VimKey(key, ctrl, meta, shift) =>
+      vim_update(model, key, ctrl, meta, shift, emit)
+    ToggleVim => {
+      let vim = !model.prefs.vim
+      let prefs = { ..model.prefs, vim, }
+      save_prefs(prefs)
+      ({ ..model, prefs, vim_mode: if vim { @keymap.Normal } else { @keymap.Insert } }, @rabbita.none)
+    }
   }
 }
 
@@ -2340,6 +2389,7 @@ fn ai_status_strip(model : Model) -> Html {
 }
 
 ///|
+///|
 fn editor_pane(
   emit : Emit[Msg],
   model : Model,
@@ -2362,6 +2412,7 @@ fn editor_pane(
             document.source.length().to_string() +
             tr(model.lang, " chars", " 字符"),
           ),
+          vim_mode_badge(model),
           button(
             type_="button",
             class="sigil-button is-small is-primary",
@@ -2393,7 +2444,19 @@ fn editor_pane(
             "在此输入邮件标记...",
           ),
           on_input=emit.map(source_changed),
-          attrs=editor_input_attrs(),
+          attrs=editor_input_attrs().on_keydown(event => {
+            if vim_should_intercept(model, event.ctrl_key(), event.meta_key()) {
+              event.prevent_default()
+            }
+            emit(
+              VimKey(
+                event.key(),
+                event.ctrl_key(),
+                event.meta_key(),
+                event.shift_key(),
+              ),
+            )
+          }),
           ([] : Array[Html]),
         ),
       ]),
@@ -2835,6 +2898,17 @@ fn table_picker(emit : Emit[Msg]) -> Html {
     accept=".csv,.tsv,.xlsx,.xls,.ods,.json",
     class="sigil-file-input",
     on_change=emit.map(_ => ImportTables),
+  )
+}
+
+///|
+fn attach_picker(emit : Emit[Msg]) -> Html {
+  input(
+    input_type=@html.InputType::File,
+    id="sigil-attach-input",
+    multiple=true,
+    class="sigil-file-input",
+    on_change=emit.map(_ => AttachFiles),
   )
 }
 
@@ -3503,6 +3577,38 @@ fn settings_tab(emit : Emit[Msg], model : Model) -> Html {
           div(class="sigil-settings-copy", [
             span(
               class="sigil-settings-title",
+              tr(model.lang, "Vim mode", "Vim 模式"),
+            ),
+            span(
+              class="sigil-settings-description",
+              tr(
+                model.lang,
+                "Esc switches to Normal; h/j/k/l move the cursor.",
+                "按 Esc 进入 Normal 模式，h/j/k/l 移动光标。",
+              ),
+            ),
+          ]),
+          div(
+            class="sigil-choice-row",
+            [
+              choice_button(
+                model.prefs.vim,
+                emit(ToggleVim),
+                if model.prefs.vim {
+                  tr(model.lang, "On", "开启")
+                } else {
+                  tr(model.lang, "Off", "关闭")
+                },
+              ),
+            ],
+          ),
+        ]),
+      ]),
+      div(class="sigil-settings-section", [
+        div(class="sigil-settings-row", [
+          div(class="sigil-settings-copy", [
+            span(
+              class="sigil-settings-title",
               tr(model.lang, "Language", "语言"),
             ),
             span(
@@ -3576,6 +3682,7 @@ fn settings_tab(emit : Emit[Msg], model : Model) -> Html {
           ),
         ),
       ]),
+      ai_memory_settings_section(emit, model),
       mail_settings_section(emit, model),
       div(class="sigil-profile-footer", [
         span(
@@ -4133,6 +4240,7 @@ fn view(emit : Emit[Msg], model : Model) -> Html {
     image_picker(emit),
     table_picker(emit),
     chart_picker(emit),
+    attach_picker(emit),
     avatar_picker(emit),
     send_dialog(emit, model),
     div(class="sigil-body", [

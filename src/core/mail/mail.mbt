@@ -21,6 +21,14 @@ pub(all) struct InlineImage {
 }
 
 ///|
+/// One user-selected file attachment, base64-encoded.
+pub(all) struct Attachment {
+  filename : String
+  mime : String
+  base64 : String
+}
+
+///|
 /// Normalizes the provider identifier; unknown values fall back to Resend.
 pub fn normalize_provider(provider : String) -> String {
   match provider.trim().to_lower() {
@@ -82,7 +90,7 @@ fn parse_data_url(url : StringView) -> ParsedDataUrl? {
 /// Replaces base64 `data:` image URLs with `cid:` references and returns the
 /// extracted images so they can be sent as inline attachments.
 pub fn extract_inline_images(html : String) -> (String, Array[InlineImage]) {
-  let output = StringBuilder(size_hint=html.length())
+  let output = StringBuilder(capacity=html.length())
   let images : Array[InlineImage] = []
   let mut cursor = 0
   while cursor < html.length() {
@@ -133,24 +141,43 @@ pub fn extract_inline_images(html : String) -> (String, Array[InlineImage]) {
 }
 
 ///|
-fn resend_attachments(images : Array[InlineImage]) -> Json {
-  Json::array(
-    images.map(fn(image) {
+fn resend_attachments(
+  images : Array[InlineImage],
+  attachments : Array[Attachment],
+) -> Json {
+  let entries : Array[Json] = []
+  for image in images {
+    entries.push(
       Json::object(
         Map([
           ("filename", Json::string(image.filename)),
           ("content", Json::string(image.base64)),
           ("content_id", Json::string(image.content_id)),
         ]),
-      )
-    }),
-  )
+      ),
+    )
+  }
+  for attachment in attachments {
+    entries.push(
+      Json::object(
+        Map([
+          ("filename", Json::string(attachment.filename)),
+          ("content", Json::string(attachment.base64)),
+        ]),
+      ),
+    )
+  }
+  Json::array(entries)
 }
 
 ///|
-fn sendgrid_attachments(images : Array[InlineImage]) -> Json {
-  Json::array(
-    images.map(fn(image) {
+fn sendgrid_attachments(
+  images : Array[InlineImage],
+  attachments : Array[Attachment],
+) -> Json {
+  let entries : Array[Json] = []
+  for image in images {
+    entries.push(
       Json::object(
         Map([
           ("content", Json::string(image.base64)),
@@ -159,9 +186,22 @@ fn sendgrid_attachments(images : Array[InlineImage]) -> Json {
           ("disposition", Json::string("inline")),
           ("content_id", Json::string(image.content_id)),
         ]),
-      )
-    }),
-  )
+      ),
+    )
+  }
+  for attachment in attachments {
+    entries.push(
+      Json::object(
+        Map([
+          ("content", Json::string(attachment.base64)),
+          ("filename", Json::string(attachment.filename)),
+          ("type", Json::string(attachment.mime)),
+          ("disposition", Json::string("attachment")),
+        ]),
+      ),
+    )
+  }
+  Json::array(entries)
 }
 
 ///|
@@ -179,12 +219,14 @@ fn envelope_from(config : DeliveryConfig) -> String {
 /// Builds the provider-specific JSON body for one message.
 ///
 /// Inline `data:` images are converted to attachments and referenced through
-/// `cid:` URLs so Gmail and other clients keep displaying them.
+/// `cid:` URLs so Gmail and other clients keep displaying them. User-selected
+/// files are appended as regular `attachment`-disposition entries.
 pub fn build_delivery_payload(
   config : DeliveryConfig,
   to : Array[String],
   subject : String,
   html : String,
+  attachments : Array[Attachment],
 ) -> Json {
   let (html, images) = extract_inline_images(html)
   if normalize_provider(config.provider) == "sendgrid" {
@@ -207,8 +249,8 @@ pub fn build_delivery_payload(
         Map([("type", Json::string("text/html")), ("value", Json::string(html))]),
       ),
     ])
-    if !images.is_empty() {
-      fields["attachments"] = sendgrid_attachments(images)
+    if !images.is_empty() || !attachments.is_empty() {
+      fields["attachments"] = sendgrid_attachments(images, attachments)
     }
     Json::object(fields)
   } else {
@@ -217,8 +259,8 @@ pub fn build_delivery_payload(
     fields["to"] = Json::array(to.map(fn(address) { Json::string(address) }))
     fields["subject"] = Json::string(subject)
     fields["html"] = Json::string(html)
-    if !images.is_empty() {
-      fields["attachments"] = resend_attachments(images)
+    if !images.is_empty() || !attachments.is_empty() {
+      fields["attachments"] = resend_attachments(images, attachments)
     }
     Json::object(fields)
   }

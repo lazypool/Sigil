@@ -48,6 +48,7 @@ test "resend payload embeds inline images" {
     ["reader@example.com"],
     "Hello",
     "<img src=\"data:image/png;base64,AAAA\">",
+    [],
   )
   let text = payload.stringify()
   assert_true(text.contains("\"from\":\"Sigil <hi@example.com>\""))
@@ -70,11 +71,54 @@ test "sendgrid payload uses personalizations and inline disposition" {
     ["reader@example.com"],
     "Hello",
     "<img src=\"data:image/png;base64,AAAA\">",
+    [],
   )
   let text = payload.stringify()
   assert_true(text.contains("\"personalizations\""))
   assert_true(text.contains("\"disposition\":\"inline\""))
   assert_true(text.contains("\"type\":\"image/png\""))
+}
+
+///|
+test "resend payload embeds user attachments" {
+  let config = @mail.DeliveryConfig::{
+    provider: "resend",
+    endpoint: "",
+    from_name: "Sigil",
+    from_address: "hi@example.com",
+    api_key: "key",
+  }
+  let payload = @mail.build_delivery_payload(
+    config,
+    ["reader@example.com"],
+    "Hello",
+    "<p>hi</p>",
+    [{ filename: "report.pdf", mime: "application/pdf", base64: "AAAA" }],
+  )
+  let text = payload.stringify()
+  assert_true(text.contains("\"filename\":\"report.pdf\""))
+  assert_true(text.contains("\"content\":\"AAAA\""))
+}
+
+///|
+test "sendgrid payload marks user attachments with attachment disposition" {
+  let config = @mail.DeliveryConfig::{
+    provider: "sendgrid",
+    endpoint: "",
+    from_name: "Sigil",
+    from_address: "hi@example.com",
+    api_key: "key",
+  }
+  let payload = @mail.build_delivery_payload(
+    config,
+    ["reader@example.com"],
+    "Hello",
+    "<p>hi</p>",
+    [{ filename: "report.pdf", mime: "application/pdf", base64: "AAAA" }],
+  )
+  let text = payload.stringify()
+  assert_true(text.contains("\"disposition\":\"attachment\""))
+  assert_true(text.contains("\"type\":\"application/pdf\""))
 }
 
 ///|
