@@ -107,6 +107,7 @@ test "formula block uses the math renderer" {
     letter: None,
     palette: None,
     blocks: [@types.Block::Formula("\\frac{1}{2}")],
+    lang: None,
   }
   let html = @render.render_document(
     document,

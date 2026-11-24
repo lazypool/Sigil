@@ -51,6 +51,7 @@ pub(all) struct Document {
   letter : String?
   palette : String?
   blocks : Array[Block]
+  lang : String?
 }
 
 ///|
@@ -88,5 +89,6 @@ pub fn Document::empty() -> Document {
     letter: None,
     palette: None,
     blocks: [],
+    lang: None,
   }
 }

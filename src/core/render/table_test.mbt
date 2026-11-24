@@ -15,6 +15,7 @@ test "table block renders an email-safe html table" {
     letter: None,
     palette: None,
     blocks: [@types.Block::Table("stats.csv")],
+    lang: None,
   }
   let tables : Map[String, String] = Map([
     ("stats.csv", "Name,Value\n\"<Ada>\",42\n"),
@@ -44,6 +45,7 @@ test "missing table asset renders a readable placeholder" {
     letter: None,
     palette: None,
     blocks: [@types.Block::Table("missing.csv")],
+    lang: None,
   }
   let html = @render.render_document(document, @types.Profile::empty(), Map([]))
   assert_true(html.contains("[table:missing.csv]"))

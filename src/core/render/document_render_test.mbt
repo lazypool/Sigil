@@ -14,6 +14,7 @@ test "rendered document escapes text and uses the theme accent" {
       @types.Block::Divider,
       @types.Block::Signature("classic"),
     ],
+    lang: None,
   }
   let profile = @types.Profile::{
     name: "Ada Lovelace",
@@ -47,6 +48,7 @@ test "plain text block renders escaped gray text" {
     letter: None,
     palette: None,
     blocks: [@types.Block::PlainText("<hello> & goodbye")],
+    lang: None,
   }
   let html = @render.render_document(
     document,
@@ -81,6 +83,7 @@ test "built-in icon renders as a theme-colored inline svg" {
     letter: None,
     palette: None,
     blocks: [@types.Block::Paragraph([@types.Inline::Icon("mail")])],
+    lang: None,
   }
   let html = @render.render_document(
     document,
