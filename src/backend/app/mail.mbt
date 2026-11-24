@@ -169,6 +169,7 @@ async fn deliver(
   to : Array[String],
   subject : String,
   html : String,
+  attachments : Array[@mail.Attachment],
 ) -> @contract.SendEmailReply {
   if stored.api_key == "" {
     return {
@@ -193,7 +194,13 @@ async fn deliver(
     api_key: stored.api_key,
   }
   let endpoint = @mail.endpoint_for(config)
-  let payload = @mail.build_delivery_payload(config, to, subject, html)
+  let payload = @mail.build_delivery_payload(
+    config,
+    to,
+    subject,
+    html,
+    attachments,
+  )
   let response = @http.post_text(
     endpoint,
     payload.stringify(),
@@ -220,7 +227,22 @@ async fn send_email_inner(
   request : @contract.SendEmailRequest,
 ) -> @contract.SendEmailReply {
   let stored = load_stored_settings(path)
-  deliver(stored, request.to, request.subject, request.html)
+  let attachments = request.attachments.map(
+    fn(attachment) -> @mail.Attachment {
+      {
+        filename: attachment.filename,
+        mime: attachment.mime,
+        base64: attachment.base64,
+      }
+    },
+  )
+  deliver(
+    stored,
+    request.to,
+    request.subject,
+    request.html,
+    attachments,
+  )
 }
 
 ///|
@@ -270,6 +292,7 @@ async fn test_mail_settings_inner(
     [recipient.to_owned()],
     "Sigil test email",
     test_email_html(stored.provider),
+    [],
   )
   {
     ok: reply.ok,

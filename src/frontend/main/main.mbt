@@ -71,6 +71,7 @@ struct Model {
   send_busy : Bool
   send_notice : String
   send_notice_ok : Bool
+  send_attachments : Array[@contract.Attachment]
   ai_memory : AiMemory
   ai_memory_key : String
   ai_memory_value : String
@@ -154,6 +155,9 @@ enum Msg {
   SendSubjectChanged(String)
   BeginSend
   SendFinished(String)
+  AttachFiles
+  AttachmentsSelected(String)
+  RemoveAttachment(Int32)
   OpenDeliverySettings
   MailLoaded(String)
   MailFieldChanged(MailField, String)
@@ -252,6 +256,7 @@ fn initial_model() -> Model {
     send_busy: false,
     send_notice: "",
     send_notice_ok: false,
+    send_attachments: [],
     ai_memory: load_ai_memory(),
     ai_memory_key: "",
     ai_memory_value: "",
@@ -534,12 +539,44 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
         send_busy: false,
         send_notice: "",
         send_notice_ok: false,
+        send_attachments: [],
       },
       @rabbita.none,
     )
     SendToChanged(value) => ({ ..model, send_to: value, }, @rabbita.none)
     SendSubjectChanged(value) =>
       ({ ..model, send_subject: value, }, @rabbita.none)
+    AttachFiles =>
+      (
+        model,
+        @rabbita.perform(
+          data => emit(AttachmentsSelected(data)),
+          import_attachments_task,
+        ),
+      )
+    AttachmentsSelected(json) => {
+      let incoming = parse_attachments(json)
+      if incoming.is_empty() {
+        (model, @rabbita.none)
+      } else {
+        let merged = model.send_attachments.copy()
+        for attachment in incoming {
+          merged.push(attachment)
+        }
+        ({ ..model, send_attachments: merged, }, @rabbita.none)
+      }
+    }
+    RemoveAttachment(index) => {
+      let filtered : Array[@contract.Attachment] = []
+      let mut i = 0
+      for attachment in model.send_attachments {
+        if i != index {
+          filtered.push(attachment)
+        }
+        i = i + 1
+      }
+      ({ ..model, send_attachments: filtered, }, @rabbita.none)
+    }
     BeginSend =>
       match active_document(model) {
         None => (model, @rabbita.none)
@@ -593,7 +630,7 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
             (
               next,
               @rabbita.perform(data => emit(SendFinished(data)), async fn() -> String noraise {
-                send_mail_task(html, model.send_to, subject)
+                send_mail_task(html, model.send_to, subject, model.send_attachments)
               }),
             )
           }
@@ -2865,6 +2902,17 @@ fn table_picker(emit : Emit[Msg]) -> Html {
 }
 
 ///|
+fn attach_picker(emit : Emit[Msg]) -> Html {
+  input(
+    input_type=@html.InputType::File,
+    id="sigil-attach-input",
+    multiple=true,
+    class="sigil-file-input",
+    on_change=emit.map(_ => AttachFiles),
+  )
+}
+
+///|
 fn image_card(
   emit : Emit[Msg],
   model : Model,
@@ -4192,6 +4240,7 @@ fn view(emit : Emit[Msg], model : Model) -> Html {
     image_picker(emit),
     table_picker(emit),
     chart_picker(emit),
+    attach_picker(emit),
     avatar_picker(emit),
     send_dialog(emit, model),
     div(class="sigil-body", [
