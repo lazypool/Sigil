@@ -82,7 +82,7 @@ fn parse_data_url(url : StringView) -> ParsedDataUrl? {
 /// Replaces base64 `data:` image URLs with `cid:` references and returns the
 /// extracted images so they can be sent as inline attachments.
 pub fn extract_inline_images(html : String) -> (String, Array[InlineImage]) {
-  let output = StringBuilder(size_hint=html.length())
+  let output = StringBuilder(capacity=html.length())
   let images : Array[InlineImage] = []
   let mut cursor = 0
   while cursor < html.length() {
