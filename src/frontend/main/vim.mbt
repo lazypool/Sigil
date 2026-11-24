@@ -280,6 +280,29 @@ fn vim_op_json(op : @keymap.VimOp) -> String {
 }
 
 ///|
+/// Badge showing the current vim mode when vim is enabled; empty when off.
+fn vim_mode_badge(model : Model) -> Html {
+  if !model.prefs.vim {
+    return @html.nothing
+  }
+  let (label, color, bg) = match model.vim_mode {
+    @keymap.Normal => ("NORMAL", "#0f172a", "#e2e8f0")
+    @keymap.Insert => ("INSERT", "#ffffff", "#10b981")
+  }
+  @html.span(
+    class="sigil-vim-badge",
+    style=[
+      "display:inline-block;margin-left:8px;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;letter-spacing:0.5px;color:" +
+      color +
+      ";background:" +
+      bg +
+      ";",
+    ],
+    [@html.text(label)],
+  )
+}
+
+///|
 /// Handle a `VimKey` message. Disabled (`prefs.vim == false`) keys are a pure
 /// no-op with no side effects.
 fn vim_update(
