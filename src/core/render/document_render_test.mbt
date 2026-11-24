@@ -107,3 +107,42 @@ test "every whitelisted icon renders as an svg glyph" {
   }
   assert_false(@render.render_icon("rocket", "#2563EB").contains("<svg"))
 }
+
+///|
+test "lists render as table rows with explicit markers" {
+  let document = @types.Document::{
+    theme: None,
+    footer: None,
+    split: None,
+    letter: None,
+    palette: None,
+    blocks: [
+      @types.Block::ListBlock(
+        @types.ListKind::Unordered,
+        [
+          [@types.Inline::Text("first")],
+          [@types.Inline::Text("second")],
+        ],
+      ),
+      @types.Block::ListBlock(
+        @types.ListKind::Ordered(3),
+        [
+          [@types.Inline::Text("three")],
+          [@types.Inline::Text("four")],
+        ],
+      ),
+    ],
+    lang: None,
+  }
+  let html = @render.render_document(
+    document,
+    @types.Profile::empty(),
+    Map([]),
+  )
+  assert_true(html.contains("&#8226;"))
+  assert_true(html.contains("3."))
+  assert_true(html.contains("4."))
+  assert_false(html.contains("<ul"))
+  assert_false(html.contains("<ol"))
+  assert_false(html.contains("<li"))
+}
