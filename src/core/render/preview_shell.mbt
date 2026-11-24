@@ -25,6 +25,10 @@ pub fn build_letter_shell(
   accent : String,
   letter : String,
 ) -> String {
+  match @themes.render_letter_pack(letter, body_html, accent) {
+    Some(html) => return html
+    None => ()
+  }
   let outer_bg = if letter == "card" {
     "#F5F6F8"
   } else {

@@ -11,11 +11,11 @@ enum StyleKind {
 ///|
 fn style_options(kind : StyleKind) -> Array[String] {
   match kind {
-    LetterStyle => ["minimal", "card"]
-    FooterStyle => ["legal", "unsubscribe", "blank"]
-    SplitStyle => ["line", "wave", "ornament"]
+    LetterStyle => @types.letter_theme_ids
+    FooterStyle => @types.footer_theme_ids
+    SplitStyle => @types.divider_theme_ids
     ChartStyle => @types.chart_palette_names
-    SignatureStyle => ["classic", "minimal", "academic", "compact"]
+    SignatureStyle => @types.signature_theme_ids
   }
 }
 
@@ -37,6 +37,8 @@ fn style_label(lang : Lang, kind : StyleKind, id : String) -> String {
       match id {
         "minimal" => tr(lang, "Minimal", "极简")
         "card" => tr(lang, "Card", "卡片")
+        "plain" => tr(lang, "Plain", "素白")
+        "border" => tr(lang, "Border", "描边")
         _ => id
       }
     FooterStyle =>
@@ -44,6 +46,8 @@ fn style_label(lang : Lang, kind : StyleKind, id : String) -> String {
         "legal" => tr(lang, "Legal", "法律")
         "unsubscribe" => tr(lang, "Unsubscribe", "退订")
         "blank" => tr(lang, "Blank", "空白")
+        "minimal" => tr(lang, "Minimal", "极简")
+        "contact" => tr(lang, "Contact", "联系")
         _ => id
       }
     SplitStyle =>
@@ -53,6 +57,8 @@ fn style_label(lang : Lang, kind : StyleKind, id : String) -> String {
         "wave" => tr(lang, "Wave", "波浪")
         "space" => tr(lang, "Space", "留白")
         "ornament" => tr(lang, "Ornament", "装饰")
+        "dots" => tr(lang, "Dots", "圆点")
+        "minimal" => tr(lang, "Minimal", "极简")
         _ => id
       }
     ChartStyle =>
@@ -72,6 +78,8 @@ fn style_label(lang : Lang, kind : StyleKind, id : String) -> String {
         "minimal" => tr(lang, "Minimal", "极简")
         "academic" => tr(lang, "Academic", "学术")
         "compact" => tr(lang, "Compact", "紧凑")
+        "mono" => tr(lang, "Mono", "等宽")
+        "line" => tr(lang, "Line", "实线")
         _ => id
       }
   }

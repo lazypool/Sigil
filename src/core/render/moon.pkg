@@ -1,4 +1,5 @@
 import {
   "moonbitlang/core/math",
+  "xiao/sigil/core/themes",
   "xiao/sigil/core/types",
 }

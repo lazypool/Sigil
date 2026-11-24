@@ -45,6 +45,7 @@ Only the following directives are allowed in the header. Each may appear at most
 | `@split` | Divider style id | Selects divider style for all `---` |
 | `@letter` | Letter theme id | Selects the outer letter frame |
 | `@palette` | Chart palette id | Selects the palette used by every chart |
+| `@lang` | Language code `zh` or `en` | Declares the document's primary language |
 
 ### 2.1 Syntax
 
@@ -61,6 +62,7 @@ Only the following directives are allowed in the header. Each may appear at most
 - Duplicate directive of the same kind → error; keep the first.
 - Unknown directive → error; list the four legal directives.
 - `@theme` must be a valid hex color or named theme color; otherwise error.
+- `@lang` must be one of `zh` or `en`; otherwise error.
 - Once the header block ends, later `@...` lines are no longer parsed as directives.
 - The header **does not** contain `@signature`. Signatures are placed in the body via `<sig:...>`.
 
