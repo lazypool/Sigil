@@ -242,17 +242,8 @@ fn attachments_view(emit : Emit[Msg], model : Model) -> Html {
     rows.push(
       div(
         class="sigil-attachment-row",
-        style=[
-          "display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 8px;margin-top:4px;background:#f1f3f5;border-radius:4px;",
-        ],
         [
-          span(
-            class="sigil-attachment-name",
-            style=[
-              "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;",
-            ],
-            attachment.filename,
-          ),
+          span(class="sigil-attachment-name", attachment.filename),
           button(
             type_="button",
             class="sigil-button is-small is-danger",
