@@ -20,6 +20,7 @@ struct Prefs {
   accent : String
   density : Density
   editor_font_size : Int32
+  vim : Bool
 }
 
 ///|
@@ -37,6 +38,7 @@ fn default_prefs() -> Prefs {
     accent: "#3b82f6",
     density: Comfortable,
     editor_font_size: 13,
+    vim: false,
   }
 }
 
@@ -67,11 +69,16 @@ fn load_prefs() -> Prefs {
     "16" => 16
     _ => 13
   }
+  let vim = match storage_get("sigil.prefs.vim") {
+    "on" => true
+    _ => false
+  }
   {
     theme,
     accent: valid_accent(storage_get("sigil.prefs.accent")),
     density,
     editor_font_size,
+    vim,
   }
 }
 
@@ -95,6 +102,10 @@ fn save_prefs(prefs : Prefs) -> Unit {
   storage_set(
     "sigil.prefs.editor_font_size",
     prefs.editor_font_size.to_string(),
+  )
+  storage_set(
+    "sigil.prefs.vim",
+    if prefs.vim { "on" } else { "off" },
   )
 }
 

@@ -53,6 +53,7 @@ struct Model {
   profile_draft : Profile
   lang : Lang
   prefs : Prefs
+  vim_mode : @keymap.VimMode
   ai : AiConfig
   ai_target_doc_id : String
   ai_error : String
@@ -159,6 +160,8 @@ enum Msg {
   MailTestToChanged(String)
   ToggleMailAdvanced
   CopyMailHelpLink
+  VimKey(String, Bool, Bool, Bool)
+  ToggleVim
 }
 
 ///|
@@ -220,6 +223,7 @@ fn initial_model() -> Model {
     profile_draft: profile,
     lang,
     prefs: load_prefs(),
+    vim_mode: @keymap.Insert,
     ai: load_ai_config(),
     ai_target_doc_id: "",
     ai_error: "",
@@ -1665,6 +1669,13 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
       save_lang(lang)
       ({ ..model, lang, }, @rabbita.none)
     }
+    VimKey(key, ctrl, meta, shift) =>
+      vim_update(model, key, ctrl, meta, shift, emit)
+    ToggleVim => {
+      let prefs = { ..model.prefs, vim: !model.prefs.vim }
+      save_prefs(prefs)
+      ({ ..model, prefs, vim_mode: @keymap.Insert }, @rabbita.none)
+    }
   }
 }
 
@@ -2393,7 +2404,19 @@ fn editor_pane(
             "在此输入邮件标记...",
           ),
           on_input=emit.map(source_changed),
-          attrs=editor_input_attrs(),
+          attrs=editor_input_attrs().on_keydown(event => {
+            if vim_should_intercept(model, event.ctrl_key(), event.meta_key()) {
+              event.prevent_default()
+            }
+            emit(
+              VimKey(
+                event.key(),
+                event.ctrl_key(),
+                event.meta_key(),
+                event.shift_key(),
+              ),
+            )
+          }),
           ([] : Array[Html]),
         ),
       ]),
@@ -3496,6 +3519,38 @@ fn settings_tab(emit : Emit[Msg], model : Model) -> Html {
             ),
           ]),
           div(class="sigil-choice-row", font_choices),
+        ]),
+      ]),
+      div(class="sigil-settings-section", [
+        div(class="sigil-settings-row", [
+          div(class="sigil-settings-copy", [
+            span(
+              class="sigil-settings-title",
+              tr(model.lang, "Vim mode", "Vim 模式"),
+            ),
+            span(
+              class="sigil-settings-description",
+              tr(
+                model.lang,
+                "Esc switches to Normal; h/j/k/l move the cursor.",
+                "按 Esc 进入 Normal 模式，h/j/k/l 移动光标。",
+              ),
+            ),
+          ]),
+          div(
+            class="sigil-choice-row",
+            [
+              choice_button(
+                model.prefs.vim,
+                emit(ToggleVim),
+                if model.prefs.vim {
+                  tr(model.lang, "On", "开启")
+                } else {
+                  tr(model.lang, "Off", "关闭")
+                },
+              ),
+            ],
+          ),
         ]),
       ]),
       div(class="sigil-settings-section", [
