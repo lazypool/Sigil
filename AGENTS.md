@@ -22,6 +22,10 @@ The language spec is `docs/SPEC.md`; the user-facing overview is `README.md`.
 - `proton_cli build` — build the desktop app.
 - `proton_cli dev` — run the app in development mode.
 - `proton_cli package --dry-run` — verify packaging.
+- `warren -C src/frontend build --browser-entry main` — build only the
+  frontend bundle (the step `proton_cli build` runs for the frontend). The
+  `-C` flag is required: warren resolves the browser entry against the
+  workspace root, not the current directory.
 
 Run `moon check` and `moon test` after code changes. Run the build when
 touching the frontend or backend.
