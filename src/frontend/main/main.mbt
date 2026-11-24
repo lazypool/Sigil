@@ -70,6 +70,10 @@ struct Model {
   send_busy : Bool
   send_notice : String
   send_notice_ok : Bool
+  ai_memory : AiMemory
+  ai_memory_key : String
+  ai_memory_value : String
+  ai_memory_kind : String
 }
 
 ///|
@@ -159,6 +163,12 @@ enum Msg {
   MailTestToChanged(String)
   ToggleMailAdvanced
   CopyMailHelpLink
+  AiMemoryKeyChanged(String)
+  AiMemoryValueChanged(String)
+  AiMemoryKindChanged(String)
+  AiMemoryAdd
+  AiMemoryForget(String)
+  AiMemoryClear
 }
 
 ///|
@@ -237,6 +247,10 @@ fn initial_model() -> Model {
     send_busy: false,
     send_notice: "",
     send_notice_ok: false,
+    ai_memory: load_ai_memory(),
+    ai_memory_key: "",
+    ai_memory_value: "",
+    ai_memory_kind: "",
   }
 }
 
@@ -738,6 +752,39 @@ fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
         },
         @rabbita.none,
       )
+    }
+    AiMemoryKeyChanged(value) =>
+      ({ ..model, ai_memory_key: value, }, @rabbita.none)
+    AiMemoryValueChanged(value) =>
+      ({ ..model, ai_memory_value: value, }, @rabbita.none)
+    AiMemoryKindChanged(value) =>
+      ({ ..model, ai_memory_kind: value, }, @rabbita.none)
+    AiMemoryAdd => {
+      let memory = ai_memory_put(
+        model.ai_memory,
+        model.ai_memory_key,
+        model.ai_memory_value,
+        model.ai_memory_kind,
+      )
+      save_ai_memory(memory)
+      (
+        {
+          ..model,
+          ai_memory: memory,
+          ai_memory_key: "",
+          ai_memory_value: "",
+        },
+        @rabbita.none,
+      )
+    }
+    AiMemoryForget(key) => {
+      let memory = ai_memory_forget(model.ai_memory, key)
+      save_ai_memory(memory)
+      ({ ..model, ai_memory: memory, }, @rabbita.none)
+    }
+    AiMemoryClear => {
+      let memory = ai_memory_clear()
+      ({ ..model, ai_memory: memory, }, @rabbita.none)
     }
     SetTheme(theme) => {
       let prefs = { ..model.prefs, theme, }
@@ -3576,6 +3623,7 @@ fn settings_tab(emit : Emit[Msg], model : Model) -> Html {
           ),
         ),
       ]),
+      ai_memory_settings_section(emit, model),
       mail_settings_section(emit, model),
       div(class="sigil-profile-footer", [
         span(
