@@ -79,6 +79,14 @@ fn render_inlines(inlines : Array[Inline], accent : String) -> String {
 ///|
 fn divider_html(split : String?, accent : String) -> String {
   match split {
+    Some(id) =>
+      match @themes.render_divider_pack(id, accent) {
+        Some(html) => return html
+        None => ()
+      }
+    None => ()
+  }
+  match split {
     Some("wave") =>
       "<div style=\"margin:26px 0;text-align:center;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:13px;letter-spacing:2px;line-height:1;\">" +
       "<span style=\"color:#CBD5E1;\">-----</span> " +
@@ -149,6 +157,10 @@ fn render_signature(
   profile : Profile,
   accent : String,
 ) -> String {
+  match @themes.render_signature_pack(theme, profile, accent) {
+    Some(html) => return html
+    None => ()
+  }
   ignore(theme)
   let name = if profile.name != "" {
     profile.name
@@ -280,6 +292,14 @@ fn render_footer(
   profile : Profile,
   accent : String,
 ) -> String {
+  match footer {
+    Some(id) =>
+      match @themes.render_footer_pack(id, profile, accent) {
+        Some(html) => return html
+        None => ()
+      }
+    None => ()
+  }
   match footer {
     Some("legal") => {
       let company = if profile.company != "" {
