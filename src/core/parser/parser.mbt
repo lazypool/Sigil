@@ -408,6 +408,7 @@ pub fn parse(source : String) -> ParseResult {
   let mut split : String? = None
   let mut letter : String? = None
   let mut palette : String? = None
+  let mut lang : String? = None
   let mut index = 0
   let line_count = lines.length()
 
@@ -504,6 +505,24 @@ pub fn parse(source : String) -> ParseResult {
             )
           } else {
             palette = Some(value)
+          }
+        "@lang" =>
+          if lang is Some(_) {
+            push_diagnostic(
+              diagnostics,
+              Error,
+              "Duplicate @lang directive.",
+              line_number,
+            )
+          } else if value != "zh" && value != "en" {
+            push_diagnostic(
+              diagnostics,
+              Error,
+              "@lang must be one of: zh, en.",
+              line_number,
+            )
+          } else {
+            lang = Some(value)
           }
         _ =>
           push_diagnostic(
@@ -759,5 +778,5 @@ pub fn parse(source : String) -> ParseResult {
     i = i + 1
   }
   flush_paragraph(paragraph, blocks, diagnostics, line_count)
-  { document: { theme, footer, split, letter, palette, blocks, }, diagnostics, }
+  { document: { theme, footer, split, letter, palette, blocks, lang, }, diagnostics, }
 }

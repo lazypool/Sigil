@@ -185,3 +185,31 @@ test "built-in icons parse and unknown icons are rejected" {
   assert_true(unknown.diagnostics[0].severity is Error)
   assert_true(unknown.diagnostics[0].message.contains("Unknown icon"))
 }
+
+///|
+test "lang directive parses, validates, and rejects duplicates" {
+  let none = @parser.parse("@theme #2563EB\n\nHello\n")
+  assert_eq(none.document.lang, None)
+  assert_eq(none.diagnostics.length(), 0)
+
+  let zh = @parser.parse("@lang zh\n\nHello\n")
+  assert_eq(zh.document.lang, Some("zh"))
+  assert_eq(zh.diagnostics.length(), 0)
+
+  let en = @parser.parse("@lang en\n\nHello\n")
+  assert_eq(en.document.lang, Some("en"))
+  assert_eq(en.diagnostics.length(), 0)
+
+  let invalid = @parser.parse("@lang fr\n\nHello\n")
+  assert_eq(invalid.document.lang, None)
+  assert_eq(invalid.diagnostics.length(), 1)
+  assert_true(invalid.diagnostics[0].severity is Error)
+  assert_true(invalid.diagnostics[0].message.contains("zh, en"))
+  assert_eq(invalid.document.blocks.length(), 1)
+
+  let duplicate = @parser.parse("@lang zh\n@lang en\n\nHello\n")
+  assert_eq(duplicate.document.lang, Some("zh"))
+  assert_eq(duplicate.diagnostics.length(), 1)
+  assert_true(duplicate.diagnostics[0].severity is Error)
+  assert_true(duplicate.diagnostics[0].message.contains("Duplicate @lang"))
+}
