@@ -1,9 +1,9 @@
 name = "xiao/sigil_frontend"
 
-version = "0.1.0"
+version = "0.2.0"
 
 import {
-  "xiao/sigil@0.1.0",
+  "xiao/sigil@0.2.0",
   "moonbit-community/rabbita@0.16.4",
 }
 
