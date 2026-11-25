@@ -6,7 +6,7 @@
   },
   "package": {
     "product_name": "Sigil",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "icons": ["build/icon.png"],
     "output": "dist"
   },
